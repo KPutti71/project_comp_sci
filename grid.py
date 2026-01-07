@@ -32,28 +32,74 @@ class StaggeredGrid:
     def gradient_cells(self):
         gradient_hori = np.zeros((self.ny, self.nx))
         for i in range(self.ny):
-            gradient_hori[i] = -self.hori[i] + self.hori[i+1]
-        return gradient_hori
+            gradient_hori[i, :] = self.hori[i + 1, :] - self.hori[i, :]
+
+        gradient_vert = np.zeros((self.ny, self.nx))
+        for j in range(self.nx):
+            gradient_vert[:, j] = self.vert[:, j + 1] - self.vert[:, j]
+
+        return -(gradient_hori + gradient_vert)
+    
+    def plot(self):
+        hori_xv, hori_yv, vert_xv, vert_yv = self.edge_points()
+        gradient = self.gradient_cells()
+
+        v_h = self.hori
+        u_v = self.vert
+
+        max_mag = max(np.max(np.abs(v_h)), np.max(np.abs(u_v)))
+        v_h_scaled = 0.5 * v_h / max_mag
+        u_v_scaled = 0.5 * u_v / max_mag
+
+        fig, ax = plt.subplots()
+
+        # heatmap of the flow in/out of a cell
+        im = ax.imshow(
+            gradient,
+            origin="lower",
+            extent=(0, self.nx, 0, self.ny),
+            cmap="viridis",
+            alpha=0.8
+        )
+
+        # vertical quivers for the horizontal edges
+        ax.quiver(
+            hori_xv,
+            hori_yv,
+            np.zeros_like(v_h_scaled),
+            v_h_scaled,
+            angles="xy",
+            scale_units="xy",
+            scale=1,
+            color="red"
+        )
+
+        # horizontal quivers for the vertical edges
+        ax.quiver(
+            vert_xv,
+            vert_yv,
+            u_v_scaled,
+            np.zeros_like(u_v_scaled),
+            angles="xy",
+            scale_units="xy",
+            scale=1,
+            color="red"
+        )
+
+        # Makes the grid equally spaced
+        ax.set_aspect("equal")
+        ax.set_xticks(np.arange(0, self.nx + 1, 1))
+        ax.set_yticks(np.arange(0, self.ny + 1, 1))
+        ax.grid(True)
+
+        plt.colorbar(im, ax=ax)
+        plt.show()
 
 
 def main():
     grid = StaggeredGrid(10, 10)
     grid.random_values()
-
-    xv, yv = grid.cell_centers()
-    hori_xv, hori_yv, vert_xv, vert_yv = grid.edge_points()
-
-    # fig, ax = plt.subplots()
-    # ax.plot(xv, yv, "ko")
-    # ax.plot(hori_xv, hori_yv, "ro")
-    # ax.plot(vert_xv, vert_yv, "go")
-    # ax.set_aspect("equal")
-    # plt.show()
-
-    cells = grid.gradient_cells()
-    print(cells)
-    plt.imshow(cells)
-    plt.show()
+    grid.plot()
 
 
 if __name__ == "__main__":
