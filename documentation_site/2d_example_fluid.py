@@ -48,6 +48,11 @@ def vorticity(sol):
                   - qy_n[2:, 1:-1] + qy_n[:-2, 1:-1])
     return vort.T
 
+def velocity_magnitude(sol):
+    ux = sol.m[qx] / sol.m[rho]
+    uy = sol.m[qy] / sol.m[rho]
+    return np.sqrt(ux**2 + uy**2).T
+
 def save(mpi_topo, x, y, m, num):
     h5 = pylbm.H5File(mpi_topo, filename, path, num)
     h5.set_grid(x, y)
@@ -148,13 +153,13 @@ else:
     fig = viewer.Fig()
     ax = fig[0]
     ax.ellipse([.3/dx, 0.5*(ymin+ymax)/dx+2], [radius/dx, radius/dx], 'r')
-    image = ax.image(vorticity(sol), cmap='cubehelix', clim=[0, .05])
+    image = ax.image(velocity_magnitude(sol), cmap='cubehelix', clim=[0, .05])
 
     def update(iframe):
         nrep = 64
         for i in range(nrep):
             sol.one_time_step()
-        image.set_data(vorticity(sol))
+        image.set_data(velocity_magnitude(sol))
         ax.title = "Solution t={0:f}".format(sol.t)
 
     # run the simulation
