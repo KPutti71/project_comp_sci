@@ -1,4 +1,4 @@
-# PyLBM Fluid Simulation Project
+# Fluid Dynamics: finding the optimal Tesla Valve Design
 
 This project uses **PyLBM** (Lattice Boltzmann Method) for fluid simulations.
 A **Python virtual environment** is used to ensure reproducibility and avoid
