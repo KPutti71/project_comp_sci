@@ -18,3 +18,5 @@ pytest-mpl
 codecov
 ipywidgets
 nbval
+markupsafe<2.1
+pylbm
