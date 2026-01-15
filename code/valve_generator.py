@@ -57,7 +57,9 @@ def draw_tesla_valve(width, dx, dy, radius):
     # All elements to be drawn in the end.
     elements = []
 
-    for _ in range(10):
+    elements += make_line(current, dx, 0, width)
+
+    for i in range(10):
         old_y = current["y"]
         old_x = current["x"]
 
@@ -75,8 +77,11 @@ def draw_tesla_valve(width, dx, dy, radius):
         elements += make_bend(current, dx, -dy, radius, width)
         elements += make_line(current, ((current["y"] - old_y * dx) / dy), -(current["y"] - old_y), width)
 
-        current["x"] -= (current["x"] - old_x) / 2
-        current["y"] -= dy / dx * (current["x"] - old_x)
+        if i < 9:
+            current["x"] -= (current["x"] - old_x) / 2
+            current["y"] -= dy / dx * (current["x"] - old_x)
+
+    elements += make_line(current, dx, 0, width)
 
     plot(elements)
 
