@@ -1,13 +1,21 @@
+# TODO
+# 1) Check if the 2d_example_fluid.py template is correctly used, and if it
+# actually fits our use case.
+# 2) Outlet doesn't work correctly?
+# 3) Inf values at one time point?
+
 import numpy as np
 import sympy as sp
 import pylbm
 
 from png_to_grid import png_to_grid, plot_grid
 
+PNG_PATH = "./data/test.png"
+
 # --------------------------------------------------
 # 1) Load grid
 # --------------------------------------------------
-grid = png_to_grid("./data/test4.png")
+grid = png_to_grid(PNG_PATH)
 
 mask = grid["mask"]
 rects = grid["rects"]

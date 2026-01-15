@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
 
-
+# Color legend used in the PNG
 LEGEND = {
     "fluid":  (255, 255, 255),   # white
     "wall":   (0,   0,   0),     # black
@@ -11,6 +11,7 @@ LEGEND = {
     "outlet": (128, 0, 128),     # purple
 }
 
+# Integer codes used internally by the solver
 CODES = {
     "fluid":  0,
     "wall":   1,
@@ -18,22 +19,27 @@ CODES = {
     "outlet": 3,
 }
 
+# Tolerances for robust color detection
 DEFAULT_TOL = 10
 DEFAULT_WALL_THRESH = 245
 
+# Tolerances for robust color detection
 L_INLET = 0
 L_OUTLET = 1
 L_WALL = 2
 
-
+# PNG -> mask (robust against compression / anti-aliasing)
 def _png_to_mask_hybrid(path, tol=DEFAULT_TOL, wall_thresh=DEFAULT_WALL_THRESH):
+    # Load PNG as RGB image
     im = Image.open(path).convert("RGB")
     arr = np.array(im, dtype=np.uint8)
     h, w = arr.shape[:2]
 
+    # Default everything to fluid
     mask = np.full((h, w), CODES["fluid"], dtype=np.int16)
     matched = np.zeros((h, w), dtype=bool)
 
+    # match legend colors within tolerance
     for name, rgb in LEGEND.items():
         rgb = np.array(rgb, dtype=np.int16)
         diff = np.abs(arr.astype(np.int16) - rgb[None, None, :])
@@ -41,6 +47,7 @@ def _png_to_mask_hybrid(path, tol=DEFAULT_TOL, wall_thresh=DEFAULT_WALL_THRESH):
         mask[close] = CODES[name]
         matched |= close
 
+    # dark pixels -> walls, bright pixels -> fluid
     gray = (0.299 * arr[..., 0] + 0.587 * arr[..., 1] + 0.114 * arr[..., 2]).astype(np.uint8)
     fallback = ~matched
     mask[fallback & (gray < wall_thresh)] = CODES["wall"]
@@ -49,6 +56,7 @@ def _png_to_mask_hybrid(path, tol=DEFAULT_TOL, wall_thresh=DEFAULT_WALL_THRESH):
     return mask
 
 
+# Merge wall pixels into axis-aligned rectangles
 def _wall_rectangles_from_mask(mask, wall_code):
     H, W = mask.shape
     rects = []
@@ -57,6 +65,7 @@ def _wall_rectangles_from_mask(mask, wall_code):
     for y in range(H):
         row = (mask[y] == wall_code).astype(np.uint8)
 
+        # find continious wall segments in row
         segments = []
         x = 0
         while x < W:
@@ -71,6 +80,7 @@ def _wall_rectangles_from_mask(mask, wall_code):
         new_active = {}
         used_prev = set()
 
+        # extend rectangle vertically
         for (x0, x1) in segments:
             key = (x0, x1)
             if key in active:
@@ -80,16 +90,19 @@ def _wall_rectangles_from_mask(mask, wall_code):
             else:
                 new_active[key] = (x0, x1, y, y + 1)
 
+        # close rectangles that did not continue
         for key, r in active.items():
             if key not in used_prev:
                 rects.append(r)
 
         active = new_active
 
+    # close any remaining rectangles
     rects.extend(active.values())
     return rects
 
 
+# PNG -> grid dictionairy
 def png_to_grid(
     png_path,
     *,
@@ -110,11 +123,12 @@ def png_to_grid(
       labels: (left,right,bottom,top) outer boundary label IDs
       codes: CODES
     """
+    # build mask in image coordinates
     mask_img = _png_to_mask_hybrid(png_path, tol=tol, wall_thresh=wall_thresh)
     mask = np.flipud(mask_img) if flip_y else mask_img
     H, W = mask.shape
 
-    # detect inlet/outlet markers on edges
+    # detect inlet/outlet markers on domain edges
     left_has_inlet = np.any(mask[:, 0] == CODES["inlet"])
     right_has_outlet = np.any(mask[:, -1] == CODES["outlet"])
 
@@ -123,6 +137,7 @@ def png_to_grid(
     bottom_label = L_WALL
     top_label = L_WALL
 
+    # extracts wall rectangles
     rects = _wall_rectangles_from_mask(mask, CODES["wall"])
 
     xmin, xmax = 0.0, W * dx
@@ -143,12 +158,8 @@ def png_to_grid(
     }
 
 
+# Debug for visual if actually working, mask + wall rectangles plot
 def plot_grid(grid, show=True):
-    """
-    Quick visualization of the grid:
-      - mask shown as background
-      - wall rectangles overlaid in red
-    """
     mask = grid["mask"]
     rects = grid["rects"]
 
@@ -156,7 +167,6 @@ def plot_grid(grid, show=True):
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
-    # show mask (origin lower because mask is y-up)
     im = ax.imshow(
         mask,
         origin="lower",
@@ -164,7 +174,7 @@ def plot_grid(grid, show=True):
         interpolation="nearest"
     )
 
-    # overlay rectangles
+    # draw each wall rectangle
     for (x0, x1, y0, y1) in rects:
         w = x1 - x0
         h = y1 - y0
