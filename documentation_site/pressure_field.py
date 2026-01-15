@@ -19,7 +19,7 @@ rho, qx, qy = sp.symbols("rho qx qy")
 # Physical + numerical parameters
 # =============================================================================
 
-radius = 0.05
+radius = 0.2
 xmin, xmax = 0.0, 3.0
 ymin, ymax = 0.0, 1.0
 
@@ -77,6 +77,11 @@ def inlet_momentum_bc(f, m, x, y):
 # =============================================================================
 
 def pressure_field(sol):
+    """
+    cs is the speed of sound and we calculate the pressure P by fluid pressure
+    equation: P = rho * cs^2
+    https://scispace.com/pdf/lattice-boltzmann-simulation-of-incompressible-fluid-flow-in-5fuap61di2.pdf
+    """
     cs2 = 1.0 / 3.0
     return cs2 * sol.m[rho]
 
@@ -150,17 +155,30 @@ def plot(sol):
     ax = fig[0]
 
     p = pressure_field(sol)
-
-    # Use pressure fluctuations for better contrast
     img = (p - p.mean()).T
 
     ax.image(img, cmap="viridis")
 
     ax.ellipse([cylinder_center[0] / dx, (0.5 * (ymin + ymax)) / dx],
                [radius / dx, radius / dx], "r")
-
+    
     ax.title = f"Pressure field at t = {sol.t:f}"
     fig.show()
+
+# =============================================================================
+# Flow resistance
+# =============================================================================
+
+def flow_resistance(sol):
+    """
+    Calculates the flow resistance R in the simulation
+    """
+    p = pressure_field(sol)
+    p_in = p[int(xmin), int((ymin + ymax)/2)] # pressure in
+    p_out = p[int(xmax), int((ymin + ymax)/2)] # pressure out
+    Q = u_in * (ymax - ymin) # Flowrate
+    R = (p_in - p_out) / Q # Flow resistance
+    return R
 
 # =============================================================================
 # Main
@@ -168,4 +186,5 @@ def plot(sol):
 
 if __name__ == "__main__":
     sol = run()
+    R = flow_resistance(sol)
     plot(sol)
