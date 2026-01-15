@@ -1,30 +1,78 @@
+import numpy as np
 import sympy as sp
 import pylbm
 
+from png_to_grid import png_to_grid, plot_grid
+
 
 class Simulation:
-    def __init__(self, obj=None):
-        self.obj = obj
+    # Labels used by the grid + pylbm box labels
+    L_INLET = 0
+    L_OUTLET = 1
+    L_WALL = 2
 
-        self.xmin, self.xmax = 0.0, 3.0
-        self.ymin, self.ymax = 0.0, 1.0
-        self.radius = 0.2
+    def __init__(
+        self,
+        png_path: str = "./data/test.png",
+        Re: float = 20.0,
+        la: float = 1.0,
+        Tf: float = 300.0,
+        rho0: float = 1.0,
+        mu_bulk: float = 1e-3,
+    ):
+        # --------------------------------------------------
+        # 1) Load grid (store everything you’ll need on self)
+        # --------------------------------------------------
+        self.png_path = png_path
+        self.grid = png_to_grid(self.png_path)
 
-        self.Re = 20
-        self.dx = 1.0 / 128
-        self.la = 1.0
-        self.Tf = 75
-        self.rho0 = 1.0
-        self.mu_bulk = 1e-3
+        self.mask = self.grid["mask"]
+        self.rects = self.grid["rects"]
+        self.dx = float(self.grid["dx"])
+        self.W, self.H = int(self.grid["W"]), int(self.grid["H"])
 
-        # Symbolic variables
+        # Domain box comes from the grid
+        self.xmin, self.xmax, self.ymin, self.ymax = map(float, self.grid["box"])
+
+        # Box boundary labels come from the grid
+        (
+            self.left_label,
+            self.right_label,
+            self.bottom_label,
+            self.top_label,
+        ) = self.grid["labels"]
+
+        # --------------------------------------------------
+        # 2) Physical / simulation parameters
+        # --------------------------------------------------
+        self.Re = float(Re)
+        self.la = float(la)
+        self.Tf = float(Tf)
+        self.rho0 = float(rho0)
+        self.mu_bulk = float(mu_bulk)
+
+        # Inlet velocity (kept from your earlier setup)
+        self.u_in = self.la / 20.0
+
+        # --------------------------------------------------
+        # 3) Build pylbm obstacles from grid rectangles
+        # --------------------------------------------------
+        self.elements = self._build_elements_from_rects(self.rects)
+
+        # --------------------------------------------------
+        # 4) Symbolic variables
+        # --------------------------------------------------
         self.X, self.Y, self.LA = sp.symbols("X Y LA")
         self.rho, self.qx, self.qy = sp.symbols("rho qx qy")
 
-        # Derived parameters
-        self.cylinder_center = [0.3, 0.5 * (self.ymin + self.ymax) + self.dx]
-        self.u_in = self.la / 20.0
-        self.eta_shear = self.rho0 * self.u_in * (2.0 * self.radius) / self.Re
+        # --------------------------------------------------
+        # 5) Derived / MRT parameters
+        # --------------------------------------------------
+        # Need some characteristic length for shear viscosity relation.
+        # If your PNG encodes a channel, a safe default is the domain height.
+        self.char_length = (self.ymax - self.ymin)
+
+        self.eta_shear = self.rho0 * self.u_in * self.char_length / self.Re
 
         dummy = 3.0 / (self.la * self.rho0 * self.dx)
         s_mu = 1.0 / (0.5 + self.mu_bulk * dummy)
@@ -37,20 +85,58 @@ class Simulation:
         self.q2 = self.qx2 + self.qy2
         self.qxy = inv * self.qx * self.qy
 
+    # --------------------------------------------------
+    # Grid -> pylbm elements
+    # --------------------------------------------------
+    def _build_elements_from_rects(self, rects):
+        elements = []
+        for (x0, x1, y0, y1) in rects:
+            px = float(x0) * self.dx
+            py = float(y0) * self.dx
+            w = float(x1 - x0) * self.dx
+            h = float(y1 - y0) * self.dx
+
+            elements.append(
+                pylbm.Parallelogram(
+                    (px, py),
+                    (w, 0.0),
+                    (0.0, h),
+                    label=self.L_WALL,
+                    isfluid=False,
+                )
+            )
+        return elements
+
+    # --------------------------------------------------
+    # Post-processing helpers
+    # --------------------------------------------------
     def pressure_field(self, sol):
         cs2 = 1.0 / 3.0
         return cs2 * sol.m[self.rho]
 
-    def flow_resistance(self, sol):
+    def flow_resistance(self, sol, x_offset_cells: int = 2):
+        """
+        Uses pressure at two x-locations (near inlet/outlet) at mid-height.
+        NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
+        """
         p = self.pressure_field(sol)
-        mid_y = int((self.ymin + self.ymax) / 2.0)
-        p_in = p[int(self.xmin + 2), mid_y]
-        p_out = p[int(self.xmax - 2), mid_y]
+        mid_y = int(0.5 * (self.ymin + self.ymax) / self.dx)
+
+        # pick two x positions a few cells away from each side of the domain
+        x_in = int(self.xmin / self.dx) + int(x_offset_cells)
+        x_out = int(self.xmax / self.dx) - int(x_offset_cells)
+
+        p_in = p[x_in, mid_y]
+        p_out = p[x_out, mid_y]
+
         Q = self.u_in * (self.ymax - self.ymin)
         return abs(p_in - p_out) / Q
 
+    # --------------------------------------------------
+    # pylbm config
+    # --------------------------------------------------
     def build_simulation_config(self):
-        # --- IMPORTANT FIX: use a plain function (closure), not a bound method ---
+        # inlet callback must be a plain function (closure), not a bound method
         qx_sym = self.qx
         rho0 = self.rho0
         u_in = self.u_in
@@ -58,8 +144,12 @@ class Simulation:
         def inlet_momentum_bc(f, m, x, y):
             m[qx_sym] = rho0 * u_in
 
-        box = {"x": [self.xmin, self.xmax], "y": [self.ymin, self.ymax], "label": [0, 2, 0, 0]}
-        elements = [pylbm.Circle(self.cylinder_center, self.radius, label=1)]
+        # IMPORTANT: box labels come from the PNG grid
+        box = {
+            "x": [self.xmin, self.xmax],
+            "y": [self.ymin, self.ymax],
+            "label": [self.left_label, self.right_label, self.bottom_label, self.top_label],
+        }
 
         scheme = {
             "velocities": list(range(9)),
@@ -85,15 +175,23 @@ class Simulation:
 
         init = {self.rho: self.rho0, self.qx: 0.0, self.qy: 0.0}
 
+        # Map grid labels to pylbm BCs
         bcs = {
-            0: {"method": {0: pylbm.bc.BouzidiBounceBack}, "value": inlet_momentum_bc},
-            1: {"method": {0: pylbm.bc.BouzidiBounceBack}},
-            2: {"method": {0: pylbm.bc.NeumannX}},
+            self.L_INLET: {
+                "method": {0: pylbm.bc.BouzidiBounceBack},
+                "value": inlet_momentum_bc,
+            },
+            self.L_WALL: {
+                "method": {0: pylbm.bc.BouzidiBounceBack},
+            },
+            self.L_OUTLET: {
+                "method": {0: pylbm.bc.NeumannX},
+            },
         }
 
         return {
             "box": box,
-            "elements": elements,
+            "elements": self.elements,
             "space_step": self.dx,
             "scheme_velocity": self.la,
             "parameters": {self.LA: self.la},
@@ -103,6 +201,9 @@ class Simulation:
             "generator": "cython",
         }
 
+    # --------------------------------------------------
+    # Run + Plot
+    # --------------------------------------------------
     def run(self):
         sol = pylbm.Simulation(self.build_simulation_config())
         while sol.t < self.Tf:
@@ -118,18 +219,17 @@ class Simulation:
         img = (p - p.mean()).T
         ax.image(img, cmap="viridis")
 
-        ax.ellipse(
-            [self.cylinder_center[0] / self.dx, (0.5 * (self.ymin + self.ymax)) / self.dx],
-            [self.radius / self.dx, self.radius / self.dx],
-            "r",
-        )
-
         ax.title = f"Pressure field at t = {sol.t:f}"
         fig.show()
 
+    # Optional: visualize the parsed PNG grid itself
+    def plot_grid(self):
+        plot_grid(self.grid)
+
 
 if __name__ == "__main__":
-    sim = Simulation()
+    sim = Simulation(png_path="./data/test.png")
+    # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     print("Flow resistance R =", sim.flow_resistance(sol))
     sim.plot(sol)
