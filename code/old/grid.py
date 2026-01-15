@@ -10,7 +10,7 @@ class StaggeredGrid:
         self.cell = np.zeros((self.ny, self.nx))
         self.hori = np.zeros((self.ny + 1, self.nx))
         self.vert = np.zeros((self.ny, self.nx + 1))
-    
+
     def random_values(self):
         self.hori = (np.random.rand(self.ny + 1, self.nx) - 0.5) * 2
         self.vert = np.random.rand(self.ny, self.nx + 1)
@@ -28,7 +28,7 @@ class StaggeredGrid:
         vert_xv, vert_yv = np.meshgrid(np.arange(self.nx + 1), cy)
 
         return hori_xv, hori_yv, vert_xv, vert_yv
-    
+
     def gradient_cells(self):
         gradient_hori = np.zeros((self.ny, self.nx))
         for i in range(self.ny):
@@ -39,7 +39,7 @@ class StaggeredGrid:
             gradient_vert[:, j] = self.vert[:, j + 1] - self.vert[:, j]
 
         return -(gradient_hori + gradient_vert)
-    
+
     def plot(self):
         hori_xv, hori_yv, vert_xv, vert_yv = self.edge_points()
         gradient = self.gradient_cells()
