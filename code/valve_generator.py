@@ -1,19 +1,43 @@
 import numpy as np
 from shapely import Point
-from shapely import LineString
+from shapely import LineString, Point
 import matplotlib.pyplot as plt
 
 
+# Color legend used in the PNG
+LEGEND = {
+    "fluid":  (255, 255, 255),   # white
+    "wall":   (0,   0,   0),     # black
+    "inlet":  (255 / 255, 0,   0),     # red
+    "outlet": (128 / 255, 0, 128 / 255),     # purple
+}
+
+
+# Current position of drawing point.
+current = {
+    "x": 0.0,
+    "y": 0.0
+}
+
+
 def plot(elements):
+    fig, ax = plt.subplots()
+    ax.set_facecolor("black")
+    fig.patch.set_facecolor("black")
+
     for element in elements:
-        plt.fill(*element.exterior.xy, color="black")
+        plt.fill(*element.exterior.xy, color="white")
+
+    plt.fill(*elements[-1].exterior.xy, color=LEGEND["outlet"])
+    plt.fill(*elements[-2].exterior.xy, color=LEGEND["inlet"])
 
     plt.axis("equal")
+    ax.axis("off")
     plt.show()
 
 
 # Creates a line.
-def make_line(current, dx, dy, width):
+def make_line(dx, dy, width):
     result = LineString([(current["x"], current["y"]),
     (current["x"] + dx, current["y"] + dy)]).buffer(width)
 
@@ -24,7 +48,7 @@ def make_line(current, dx, dy, width):
 
 
 # Creates a bend of 180 degrees.
-def make_bend(current, dx, dy, radius, width):
+def make_bend(dx, dy, radius, width):
     assert(dx > 0)
 
     # Smoothness of the bend.
@@ -49,23 +73,18 @@ def draw_tesla_valve(width, dx, dy, radius):
     width /= dx
     radius /= dx
 
-    # Current position of drawing point.
-    current = {
-        "x": 0.0,
-        "y": 0.0
-    }
     # All elements to be drawn in the end.
     elements = []
 
-    elements += make_line(current, dx, 0, width)
+    elements += make_line(dx, 0, width)
 
     for i in range(10):
         old_y = current["y"]
         old_x = current["x"]
 
-        elements += make_line(current, dx, dy, width)
-        elements += make_bend(current, dx, dy, radius, width)
-        elements += make_line(current, -((current["y"] - old_y * dx) / dy), -(current["y"] - old_y), width)
+        elements += make_line(dx, dy, width)
+        elements += make_bend(dx, dy, radius, width)
+        elements += make_line(-((current["y"] - old_y * dx) / dy), -(current["y"] - old_y), width)
 
         current["x"] -= (current["x"] - old_x) / 2
         current["y"] += dy / dx * (current["x"] - old_x)
@@ -73,15 +92,18 @@ def draw_tesla_valve(width, dx, dy, radius):
         old_y = current["y"]
         old_x = current["x"]
 
-        elements += make_line(current, dx, -dy, width)
-        elements += make_bend(current, dx, -dy, radius, width)
-        elements += make_line(current, ((current["y"] - old_y * dx) / dy), -(current["y"] - old_y), width)
+        elements += make_line(dx, -dy, width)
+        elements += make_bend(dx, -dy, radius, width)
+        elements += make_line(((current["y"] - old_y * dx) / dy), -(current["y"] - old_y), width)
 
         if i < 9:
             current["x"] -= (current["x"] - old_x) / 2
             current["y"] -= dy / dx * (current["x"] - old_x)
 
-    elements += make_line(current, dx, 0, width)
+    elements += make_line(dx, 0, width)
+
+    elements += [Point(0, 0).buffer(width * 1.1)]
+    elements += [Point(current["x"], current["y"]).buffer(width * 1.1)]
 
     plot(elements)
 
