@@ -16,65 +16,52 @@ X, Y, LA = sp.symbols("X Y LA")
 rho, qx, qy = sp.symbols("rho qx qy")
 
 # =============================================================================
-# Physical + numerical parameters
+# Set parameters
 # =============================================================================
 
-radius = 0.2
 xmin, xmax = 0.0, 3.0
 ymin, ymax = 0.0, 1.0
+radius = 0.2
 
 Re = 20
-dx = 1.0 / 64
-la = 1.0
+dx = 1.0 / 128
+la = 1.
 Tf = 75
-
-rho0 = 1.0
-u_in = la / 20
-
+rho0 = 1. # 
 mu_bulk = 1e-3
+
+# =============================================================================
+# Derived parameters
+# =============================================================================
+
+cylinder_center = [0.3, 0.5 * (ymin + ymax) + dx]
+u_in = la / 20
 eta_shear = rho0 * u_in * (2.0 * radius) / Re
 
-print(f"Reynolds number: {Re:10.3e}")
-print(f"Bulk viscosity : {mu_bulk:10.3e}")
-print(f"Shear viscosity: {eta_shear:10.3e}")
-
-# =============================================================================
 # MRT relaxation parameters (D2Q9)
-# =============================================================================
-
 dummy = 3.0 / (la * rho0 * dx)
 s_mu = 1.0 / (0.5 + mu_bulk * dummy)
 s_eta = 1.0 / (0.5 + eta_shear * dummy)
-
 s = [0.0, 0.0, 0.0, s_mu, s_mu, s_eta, s_eta, s_eta, s_eta]
-print(f"relaxation parameters: {s}")
 
-# =============================================================================
 # Symbolic helper expressions
-# =============================================================================
-
 inv = 1.0 / (LA**2 * rho0)
 qx2 = inv * qx**2
 qy2 = inv * qy**2
 q2 = qx2 + qy2
 qxy = inv * qx * qy
 
-# =============================================================================
-# Geometry
-# =============================================================================
+# print(f"Reynolds number: {Re:10.3e}")
+# print(f"Bulk viscosity : {mu_bulk:10.3e}")
+# print(f"Shear viscosity: {eta_shear:10.3e}")
+# print(f"relaxation parameters: {s}")
 
-cylinder_center = [0.3, 0.5 * (ymin + ymax) + dx]
-
 # =============================================================================
-# Boundary condition
+# Function Definitions
 # =============================================================================
 
 def inlet_momentum_bc(f, m, x, y):
     m[qx] = rho0 * u_in
-
-# =============================================================================
-# Pressure field (LBM equation of state)
-# =============================================================================
 
 def pressure_field(sol):
     """
@@ -84,6 +71,17 @@ def pressure_field(sol):
     """
     cs2 = 1.0 / 3.0
     return cs2 * sol.m[rho]
+
+def flow_resistance(sol):
+    """
+    Calculates the flow resistance R in the simulation
+    """
+    p = pressure_field(sol)
+    p_in = p[int(xmin + 2), int((ymin + ymax)/2)] # pressure in
+    p_out = p[int(xmax - 2), int((ymin + ymax)/2)] # pressure out
+    Q = u_in * (ymax - ymin) # Flowrate
+    R = abs(p_in - p_out) / Q # Flow resistance
+    return R
 
 # =============================================================================
 # Build pylbm configuration
@@ -166,25 +164,11 @@ def plot(sol):
     fig.show()
 
 # =============================================================================
-# Flow resistance
-# =============================================================================
-
-def flow_resistance(sol):
-    """
-    Calculates the flow resistance R in the simulation
-    """
-    p = pressure_field(sol)
-    p_in = p[int(xmin), int((ymin + ymax)/2)] # pressure in
-    p_out = p[int(xmax), int((ymin + ymax)/2)] # pressure out
-    Q = u_in * (ymax - ymin) # Flowrate
-    R = (p_in - p_out) / Q # Flow resistance
-    return R
-
-# =============================================================================
 # Main
 # =============================================================================
 
 if __name__ == "__main__":
     sol = run()
     R = flow_resistance(sol)
+    print(f"Flow resistance R = {R}")
     plot(sol)
