@@ -33,6 +33,7 @@ def plot(elements):
 
     plt.axis("equal")
     ax.axis("off")
+    plt.savefig('valve.png')
     plt.show()
 
 
