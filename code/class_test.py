@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sp
 import pylbm
+import matplotlib.pyplot as plt
 
 from png_to_grid import png_to_grid, plot_grid
 
@@ -17,9 +18,13 @@ class Simulation:
         Re: float = 20.0,
         la: float = 1.0,
         Tf: float = 300.0,
-        rho0: float = 1.0,
+        rho0: float = .1,
         mu_bulk: float = 1e-3,
+        dt: int = None
     ):
+        # save simulation on instance
+        self.sol = None
+
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
         # --------------------------------------------------
@@ -114,12 +119,12 @@ class Simulation:
         cs2 = 1.0 / 3.0
         return cs2 * sol.m[self.rho]
 
-    def flow_resistance(self, sol, x_offset_cells: int = 2):
+    def flow_resistance(self, x_offset_cells: int = 2):
         """
         Uses pressure at two x-locations (near inlet/outlet) at mid-height.
         NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
         """
-        p = self.pressure_field(sol)
+        p = self.pressure_field(self.sol)
         mid_y = int(0.5 * (self.ymin + self.ymax) / self.dx)
 
         # pick two x positions a few cells away from each side of the domain
@@ -205,31 +210,94 @@ class Simulation:
     # Run + Plot
     # --------------------------------------------------
     def run(self):
-        sol = pylbm.Simulation(self.build_simulation_config())
-        while sol.t < self.Tf:
-            sol.one_time_step()
-        return sol
+        self.sol = pylbm.Simulation(self.build_simulation_config())
+        while self.sol.t < self.Tf:
+            self.sol.one_time_step()
 
-    def plot(self, sol):
+        return self.sol
+
+    def plot(self):
         viewer = pylbm.viewer.matplotlib_viewer
         fig = viewer.Fig()
         ax = fig[0]
 
-        p = self.pressure_field(sol)
+        p = self.pressure_field(self.sol)
         img = (p - p.mean()).T
         ax.image(img, cmap="viridis")
 
-        ax.title = f"Pressure field at t = {sol.t:f}"
+        ax.title = f"Pressure field at t = {self.sol.t:f}"
         fig.show()
 
     # Optional: visualize the parsed PNG grid itself
     def plot_grid(self):
         plot_grid(self.grid)
 
+    def animate(self, nrep: int = 50, interval: int = 1):
+        """
+        Live matplotlib animation using the existing pylbm.Simulation.
+        """
+        import matplotlib.patches as patches
+
+        if not hasattr(self, "sol"):
+            raise RuntimeError("Simulation not built. Call build_solver() first.")
+        
+        sol = self.sol
+
+        viewer = pylbm.viewer.matplotlib_viewer
+        fig = viewer.Fig()
+        ax = fig[0]
+
+        # obstacle_mask = np.zeros((self.W, self.H))
+        # # for x0, x1, y0, y1 in self.rects:
+        # #     obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacle cells
+
+        # # field_data = self.pressure_field(sol).T
+        # # combined = field_data.copy()
+        # # combined[obstacle_mask.T > 0] = field_data.max()  # or a fixed color
+        # # ax.image(combined, cmap="viridis")
+
+        # Initial field
+        p = self.pressure_field(sol)
+        image = ax.image((p - p.mean()).T, cmap="viridis")
+
+        ax.title = f"Pressure field, t = {sol.t:.3f}"
+
+        def update(frame):
+            for _ in range(nrep):
+                sol.one_time_step()
+
+            p = self.pressure_field(sol)
+            image.set_data((p - p.mean()).T)
+            ax.title = f"Pressure field, t = {sol.t:.3f}"
+
+        fig.animate(update, interval=1)
+
+        plt.show()
+    
+    def draw_elements(self, ax, color="red", alpha=0.6):
+        """
+        Draw obstacles using pylbm matplotlib_viewer methods.
+        """
+        # draw rectangles
+        for (x0, x1, y0, y1) in getattr(self, "rects", []):
+            px = float(x0) * self.dx
+            py = float(y0) * self.dx
+            w = float(x1 - x0) * self.dx
+            h = float(y1 - y0) * self.dx
+            ax.rectangle([px, py], [w, h], color=color, alpha=alpha)
+
+        # draw circles
+        for elem in self.elements:
+            if isinstance(elem, pylbm.Circle):
+                cx, cy = elem.center
+                r = elem.radius
+                ax.ellipse([cx, cy], [r, r], color=color, alpha=alpha)
+
+
 
 if __name__ == "__main__":
-    sim = Simulation(png_path="./data/test.png")
+    sim = Simulation(dt = 0.1, png_path="./data/test.png")
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
-    print("Flow resistance R =", sim.flow_resistance(sol))
-    sim.plot(sol)
+    print("Flow resistance R =", sim.flow_resistance())
+    sim.animate(nrep=1)
