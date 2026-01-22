@@ -21,18 +21,23 @@ class Simulation:
         rho0: float = 1,
         mu_bulk: float = 1e-3,
         dt: int = 1,
-        input_vel: int = 0.1
+        input_vel: int = 0.1,
+        visualization_by: str = 'pressure',
+        image_resolution: tuple = (150, 100),
+        flip_y: bool = False,
+        flip_x: bool = False
     ):
         # save simulation on instance
         self.sol = None
 
         self.dt = dt
+        self.vis_method = visualization_by
 
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
         # --------------------------------------------------
         self.png_path = png_path
-        self.grid = png_to_grid(self.png_path)
+        self.grid = png_to_grid(self.png_path, resolution=image_resolution, flip_x=flip_x, flip_y=flip_y)
 
         self.mask = self.grid["mask"]
         self.rects = self.grid["rects"]
@@ -118,16 +123,21 @@ class Simulation:
     # --------------------------------------------------
     # Post-processing helpers
     # --------------------------------------------------
-    def pressure_field(self, sol):
+    def pressure_field(self):
         cs2 = 1.0 / 3.0
-        return cs2 * sol.m[self.rho]
+        return cs2 * self.sol.m[self.rho]
+    
+    def velocity_magnitude(self):
+        ux = sol.m[self.qx] / self.sol.m[self.rho]
+        uy = sol.m[self.qy] / sol.m[self.rho]
+        return np.sqrt(ux**2 + uy**2)
 
     def flow_resistance(self, x_offset_cells: int = 2):
         """
         Uses pressure at two x-locations (near inlet/outlet) at mid-height.
         NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
         """
-        p = self.pressure_field(self.sol)
+        p = self.pressure_field()
         mid_y = int(0.5 * (self.ymin + self.ymax) / self.dx)
 
         # pick two x positions a few cells away from each side of the domain
@@ -224,7 +234,7 @@ class Simulation:
         fig = viewer.Fig()
         ax = fig[0]
 
-        p = self.pressure_field(self.sol)
+        p = self.pressure_field()
         img = (p - p.mean()).T
         ax.image(img, cmap="viridis")
 
@@ -253,7 +263,7 @@ class Simulation:
         self.draw_elements(ax)
 
         # Initial field
-        p = self.pressure_field(sol)
+        p = self.velocity_magnitude()
         image = ax.image((p - p.mean()).T, cmap="viridis")
 
         ax.title = f"Pressure field, t = {sol.t:.3f}"
@@ -262,7 +272,7 @@ class Simulation:
             for _ in range(nrep):
                 sol.one_time_step()
 
-            p = self.pressure_field(sol)
+            p = self.velocity_magnitude()
             image.set_data((p - p.mean()).T)
             ax.title = f"Pressure field, t = {sol.t:.3f}"
 
@@ -280,12 +290,12 @@ class Simulation:
         for x0, x1, y0, y1 in self.rects:
             obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacles
 
-        ax.image(obstacle_mask, clim = [0,1], cmap="Reds", alpha=0.5)
+        ax.image(obstacle_mask.T, clim = [0,1], cmap="Reds", alpha=0.5)
 
 
 
 if __name__ == "__main__":
-    sim = Simulation(la = 1.03, input_vel=0.020, png_path="./data/flow.png")
+    sim = Simulation(la = 1.03, input_vel=0.020, png_path="./data/new_valve.png", flip_x=T)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     print("Flow resistance R =", sim.flow_resistance())
