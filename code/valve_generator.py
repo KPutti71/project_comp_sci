@@ -118,6 +118,8 @@ def generate_valve(width, dx, dy, radius, N):
         if i < N - 1:
             current["x"] -= (current["x"] - old_x) / 2
             current["y"] -= dy / dx * (current["x"] - old_x)
+        else:
+            elements += make_line(current["y"] / dy, -current["y"], width)
 
     elements += make_line(dx, 0, width)
 
@@ -128,4 +130,4 @@ def generate_valve(width, dx, dy, radius, N):
 
 
 if __name__ == "__main__":
-    generate_valve(0.07, 2, 0.35, 0.1, 1)
+    generate_valve(0.07, 2, 0.35, 0.1, 20)
