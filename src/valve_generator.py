@@ -130,4 +130,4 @@ def generate_valve(width, dx, dy, radius, N):
 
 
 if __name__ == "__main__":
-    generate_valve(0.07, 2, 0.35, 0.1, 20)
+    generate_valve(0.07, 2, 0.35, 0.1, 1)
