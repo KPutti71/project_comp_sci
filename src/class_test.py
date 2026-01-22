@@ -3,8 +3,8 @@ import sympy as sp
 import pylbm
 import matplotlib.pyplot as plt
 
-from png_to_grid import png_to_grid, plot_grid
-from valve_generator import generate_valve 
+from .png_to_grid import png_to_grid, plot_grid
+from .valve_generator import generate_valve
 
 
 class Simulation:
@@ -127,7 +127,7 @@ class Simulation:
     def pressure_field(self):
         cs2 = 1.0 / 3.0
         return cs2 * self.sol.m[self.rho]
-    
+
     def velocity_magnitude(self):
         ux = sol.m[self.qx] / self.sol.m[self.rho]
         uy = sol.m[self.qy] / sol.m[self.rho]
@@ -156,7 +156,7 @@ class Simulation:
 
         Q = self.u_in * (self.ymax - self.ymin)
         return abs(p_in - p_out) / Q
-    
+
     # --------------------------------------------------
     # pylbm config
     # --------------------------------------------------
@@ -260,7 +260,7 @@ class Simulation:
 
         if not hasattr(self, "sol"):
             raise RuntimeError("Simulation not built. Call build_solver() first.")
-        
+
         sol = self.sol
 
         viewer = pylbm.viewer.matplotlib_viewer
@@ -291,8 +291,7 @@ class Simulation:
         fig.animate(update, interval=1)
 
         plt.show()
-    
-    
+
     def draw_elements(self, ax):
         """
         Draw all obstacles (Parallelograms from self.elements) on the given matplotlib axis.
@@ -307,8 +306,10 @@ class Simulation:
         img = ax.image(masked.T, clim = [0,1], cmap="binary", alpha=1)
         img.set_zorder(10)
 
+
 def diodicity(reverse, forward):
     return reverse / forward
+
 
 if __name__ == "__main__":
     generate_valve(0.07, 2, 0.3, 0.1, 1)

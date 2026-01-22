@@ -8,7 +8,7 @@ import numpy as np
 import sympy as sp
 import pylbm
 
-from png_to_grid import png_to_grid, plot_grid
+from .png_to_grid import png_to_grid, plot_grid
 
 PNG_PATH = "./data/test.png"
 
