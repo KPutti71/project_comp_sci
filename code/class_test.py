@@ -4,6 +4,7 @@ import pylbm
 import matplotlib.pyplot as plt
 
 from png_to_grid import png_to_grid, plot_grid
+from valve_generator import generate_valve 
 
 
 class Simulation:
@@ -17,13 +18,13 @@ class Simulation:
         png_path: str = "./data/test.png",
         Re: float = 20.0,
         la: float = 1.0,
-        Tf: float = 300.0,
+        Tf: float = 1000.0,
         rho0: float = 1,
         mu_bulk: float = 1e-3,
         dt: int = 1,
         input_vel: int = 0.1,
         visualization_by: str = 'pressure',
-        image_resolution: tuple = (150, 100),
+        image_resolution: tuple = (200, 100),
         flip_y: bool = False,
         flip_x: bool = False
     ):
@@ -155,7 +156,7 @@ class Simulation:
 
         Q = self.u_in * (self.ymax - self.ymin)
         return abs(p_in - p_out) / Q
-
+    
     # --------------------------------------------------
     # pylbm config
     # --------------------------------------------------
@@ -306,13 +307,28 @@ class Simulation:
         img = ax.image(masked.T, clim = [0,1], cmap="binary", alpha=1)
         img.set_zorder(10)
 
-
+def diodicity(reverse, forward):
+    return reverse / forward
 
 if __name__ == "__main__":
-    sim = Simulation(la = 1.03, input_vel=0.020, png_path="./data/new_valve.png", flip_x=True)
+    generate_valve(0.07, 2, 0.3, 0.1, 1)
+
+    # Run simulations
+    sim = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=False)
+    sim_rev = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=True)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
-    print("Flow resistance R =", sim.flow_resistance())
+    sol_rec = sim_rev.run()
+
+    # Calculate flow resistance for diodicity
+    reverse_res = sim_rev.flow_resistance()
+    forward_res = sim.flow_resistance()
+    print(f"Reverse Flow resistance at time t = {sim_rev.Tf} is R = {reverse_res}")
+    print(f"Forward Flow resistance at time t = {sim.Tf} is R = {forward_res}")
+    Diodicity = diodicity(reverse_res, forward_res)
+    print(f"The diodicity of this pipe is Di = {Diodicity}")
+
+    # Run animation of reverse flow
     sim.animate(nrep=64, interval = 0.1)
 
 
