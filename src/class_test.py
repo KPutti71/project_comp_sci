@@ -331,10 +331,7 @@ class Simulation:
         self.draw_elements(ax)
 
         # draw measure points
-        if hasattr(self, "measure_in_x"):
-            ax.ax.scatter([self.measure_in_x, self.measure_out_x], 
-                          [self.measure_in_y, self.measure_out_y], 
-                          c = "red", marker="o", zorder = 20)
+        self.draw_measure_points(ax)
 
         # Initial field
         p = self.vis_method()
@@ -368,21 +365,53 @@ class Simulation:
         img = ax.image(masked.T, clim = [0,1], cmap="binary", alpha=1)
         img.set_zorder(10)
 
+    def draw_measure_points(self, ax):
+        if hasattr(self, "measure_in_x"):
+            ax.ax.scatter([self.measure_in_x, self.measure_out_x], 
+                          [self.measure_in_y, self.measure_out_y], 
+                          c = "red", marker="o", zorder = 20)
 
 def diodicity(reverse, forward):
     return reverse / forward
 
+def run_fwd_rev(**kwargs):
+    sim_fwd = Simulation(flip_x = False, **kwargs)
+    sim_rev = Simulation(flip_x=True, **kwargs)
+
+    sol_fwd = sim_fwd.sol = pylbm.Simulation(sim_fwd.build_simulation_config())
+    sol_rev = sim_rev.sol = pylbm.Simulation(sim_rev.build_simulation_config())
+
+    viewer_fwd = pylbm.viewer.matplotlib_viewer
+    fig_fwd = viewer_fwd.Fig()
+    ax_fwd = fig_fwd[0]
+
+    viewer_rev = pylbm.viewer.matplotlib_viewer
+    fig_rev = viewer_rev.Fig()
+    ax_rev = fig_rev[0]
+
+    sim_fwd.draw_elements(ax_fwd)
+    sim_fwd.draw_measure_points(ax_fwd)
+    
+    sim_rev.draw_elements(ax_rev)
+    sim_rev.draw_measure_points(ax_fwd)
+
 
 if __name__ == "__main__":
     generate_valve(0.07, 2, 0.3, 0.1, 1)
-    resolution = (400, 200)
-    vis_method = "velocity_magnitude"
+    sim_params = {
+        "png_path": "data/valve.png",
+        "image_resolution": (400, 200),
+        "visualization_by": "pressure_field",
+        "la": 1.03,
+        "input_vel": 0.020
+        }
+
+    # run_fwd_rev(**sim_params)
+
 
     # Run simulations
-    sim = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=False,
-                      image_resolution=resolution, visualization_by=vis_method)
-    sim_rev = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=True,
-                         image_resolution=resolution, visualization_by=vis_method)
+    sim = Simulation(flip_x = False, **sim_params)
+    sim_rev = Simulation(flip_x = True, **sim_params)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     sol_rec = sim_rev.run()
