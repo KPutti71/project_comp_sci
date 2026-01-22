@@ -18,12 +18,15 @@ class Simulation:
         Re: float = 20.0,
         la: float = 1.0,
         Tf: float = 300.0,
-        rho0: float = .1,
+        rho0: float = 1,
         mu_bulk: float = 1e-3,
-        dt: int = None
+        dt: int = 1,
+        input_vel: int = 0.1
     ):
         # save simulation on instance
         self.sol = None
+
+        self.dt = dt
 
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
@@ -56,8 +59,8 @@ class Simulation:
         self.rho0 = float(rho0)
         self.mu_bulk = float(mu_bulk)
 
-        # Inlet velocity (kept from your earlier setup)
-        self.u_in = self.la / 20.0
+        # Inlet velocity
+        self.u_in = input_vel
 
         # --------------------------------------------------
         # 3) Build pylbm obstacles from grid rectangles
@@ -247,14 +250,7 @@ class Simulation:
         fig = viewer.Fig()
         ax = fig[0]
 
-        # obstacle_mask = np.zeros((self.W, self.H))
-        # # for x0, x1, y0, y1 in self.rects:
-        # #     obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacle cells
-
-        # # field_data = self.pressure_field(sol).T
-        # # combined = field_data.copy()
-        # # combined[obstacle_mask.T > 0] = field_data.max()  # or a fixed color
-        # # ax.image(combined, cmap="viridis")
+        self.draw_elements(ax)
 
         # Initial field
         p = self.pressure_field(sol)
@@ -274,30 +270,36 @@ class Simulation:
 
         plt.show()
     
-    def draw_elements(self, ax, color="red", alpha=0.6):
+    
+    def draw_elements(self, ax):
         """
-        Draw obstacles using pylbm matplotlib_viewer methods.
+        Draw all obstacles (Parallelograms from self.elements) on the given matplotlib axis.
         """
-        # draw rectangles
-        for (x0, x1, y0, y1) in getattr(self, "rects", []):
-            px = float(x0) * self.dx
-            py = float(y0) * self.dx
-            w = float(x1 - x0) * self.dx
-            h = float(y1 - y0) * self.dx
-            ax.rectangle([px, py], [w, h], color=color, alpha=alpha)
 
-        # draw circles
-        for elem in self.elements:
-            if isinstance(elem, pylbm.Circle):
-                cx, cy = elem.center
-                r = elem.radius
-                ax.ellipse([cx, cy], [r, r], color=color, alpha=alpha)
+        obstacle_mask = np.zeros((self.W, self.H))  # lattice size
+        for x0, x1, y0, y1 in self.rects:
+            obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacles
+
+        ax.image(obstacle_mask, clim = [0,1], cmap="Reds", alpha=0.5)
 
 
 
 if __name__ == "__main__":
-    sim = Simulation(dt = 0.1, png_path="./data/test.png")
+    sim = Simulation(la = 1.03, input_vel=0.020, png_path="./data/flow.png")
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     print("Flow resistance R =", sim.flow_resistance())
-    sim.animate(nrep=1)
+    sim.animate(nrep=64, interval = 0.1)
+
+
+"""
+animation parameters
+nrep = stepsize of t per frame. nrep = 60 -> everyframe t += 60
+interval = the amount of ms between frames
+
+simulation parameters
+la = 1.02, input_vel=0.015 works pretty well
+la = is scheme velocity. Increasing this will make the simulation more stable, but simulation time longer.
+input_vel: input velocity of the fluid. Decrease for more stable simulation.
+
+"""
