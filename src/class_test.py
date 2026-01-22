@@ -34,6 +34,8 @@ class Simulation:
         self.dt = dt
         self.vis_method = visualization_by
 
+        
+
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
         # --------------------------------------------------
@@ -73,6 +75,16 @@ class Simulation:
         # --------------------------------------------------
         self.elements = self._build_elements_from_rects(self.rects)
 
+
+        # ----
+        # MEASUREMENTS BABY
+        # ----
+
+        # flow resistance measurement coords
+        self.measure_in_y, self.measure_out_y = self.set_measure_y()
+        self.measure_in_x, self.measure_out_x = self.set_measure_x()
+
+
         # --------------------------------------------------
         # 4) Symbolic variables
         # --------------------------------------------------
@@ -98,6 +110,64 @@ class Simulation:
         self.qy2 = inv * self.qy**2
         self.q2 = self.qx2 + self.qy2
         self.qxy = inv * self.qx * self.qy
+
+    def set_measure_y(self):
+        """
+        Function to find the coordinates of the measurement points.
+        coordinates will be 
+        """
+
+        y_in = 0
+        # find y_in top boundary
+        while self.mask[:, 0][y_in] == 1 and y_in < self.ymax:
+            y_in += 1
+        
+        # find diameter
+        valve_diameter =0
+        while self.mask[:, 0][y_in+valve_diameter] == 0 and y_in < self.ymax:
+            valve_diameter += 1
+        
+        # find y-out top boundary
+        y_out = 0
+        while self.mask[:, -1][y_out] and y_out < self.ymax:
+            y_out += 1
+
+        y_in = y_in+(valve_diameter/2)
+        y_out = y_out+(valve_diameter/2)
+        
+        return (int(y_in), int(y_out))
+
+    def set_measure_x(self):
+        # find y_in top boundary
+        y_in = 0
+        while self.mask[:, 0][y_in] == 1 and y_in < self.ymax:
+            y_in += 1
+        
+        # find diameter
+        valve_diameter =0
+        while self.mask[:, 0][y_in+valve_diameter] == 0 and y_in < self.ymax:
+            valve_diameter += 1
+
+        # find first loop start x coord
+        first_loop_x = 0
+        while (self.mask[y_in - 1, :][first_loop_x] == 1 
+               and self.mask[y_in+valve_diameter, :][first_loop_x] == 1
+               and first_loop_x < self.xmax):
+            first_loop_x += 1
+        
+        # find y-out top boundary
+        y_out = 0
+        while self.mask[:, -1][y_out] and y_out < self.ymax:
+            y_out += 1
+        
+        # find final loop end x coord
+        final_loop_x = int(self.xmax) - 1
+        while (self.mask[y_out - 1, :][final_loop_x] == 1
+               and self.mask[y_out + valve_diameter, :][final_loop_x] == 1
+               and final_loop_x >= 0):
+            final_loop_x -= 1
+        
+        return (int(first_loop_x), int(final_loop_x))
 
     # --------------------------------------------------
     # Grid -> pylbm elements
@@ -139,20 +209,9 @@ class Simulation:
         NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
         """
         p = self.pressure_field()
-        mid_y = int(0.5 * (self.ymin + self.ymax) / self.dx)
 
-        # pick two x positions a few cells away from each side of the domain
-        x_in = int(self.xmin / self.dx) + int(x_offset_cells)
-        x_out = int(self.xmax / self.dx) - int(x_offset_cells)
-
-        # set measure coordinates for the instance
-        self.measure_in_x = x_in
-        self.measure_out_x = x_out
-        self.measure_in_y = mid_y
-        self.measure_out_y = mid_y
-
-        p_in = p[x_in, mid_y]
-        p_out = p[x_out, mid_y]
+        p_in = p[self.measure_in_x, self.measure_in_y]
+        p_out = p[self.measure_out_x, self.measure_out_y]
 
         Q = self.u_in * (self.ymax - self.ymin)
         return abs(p_in - p_out) / Q
