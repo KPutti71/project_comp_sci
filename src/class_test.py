@@ -3,7 +3,8 @@ import sympy as sp
 import pylbm
 import matplotlib.pyplot as plt
 
-from png_to_grid import png_to_grid, plot_grid
+from .png_to_grid import png_to_grid, plot_grid
+from .valve_generator import generate_valve
 
 
 class Simulation:
@@ -17,19 +18,27 @@ class Simulation:
         png_path: str = "./data/test.png",
         Re: float = 20.0,
         la: float = 1.0,
-        Tf: float = 300.0,
-        rho0: float = .1,
+        Tf: float = 1000.0,
+        rho0: float = 1,
         mu_bulk: float = 1e-3,
-        dt: int = None
+        dt: int = 1,
+        input_vel: int = 0.1,
+        visualization_by: str = 'pressure',
+        image_resolution: tuple = (200, 100),
+        flip_y: bool = False,
+        flip_x: bool = False
     ):
         # save simulation on instance
         self.sol = None
+
+        self.dt = dt
+        self.vis_method = visualization_by
 
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
         # --------------------------------------------------
         self.png_path = png_path
-        self.grid = png_to_grid(self.png_path)
+        self.grid = png_to_grid(self.png_path, resolution=image_resolution, flip_x=flip_x, flip_y=flip_y)
 
         self.mask = self.grid["mask"]
         self.rects = self.grid["rects"]
@@ -56,8 +65,8 @@ class Simulation:
         self.rho0 = float(rho0)
         self.mu_bulk = float(mu_bulk)
 
-        # Inlet velocity (kept from your earlier setup)
-        self.u_in = self.la / 20.0
+        # Inlet velocity
+        self.u_in = input_vel
 
         # --------------------------------------------------
         # 3) Build pylbm obstacles from grid rectangles
@@ -115,21 +124,32 @@ class Simulation:
     # --------------------------------------------------
     # Post-processing helpers
     # --------------------------------------------------
-    def pressure_field(self, sol):
+    def pressure_field(self):
         cs2 = 1.0 / 3.0
-        return cs2 * sol.m[self.rho]
+        return cs2 * self.sol.m[self.rho]
+
+    def velocity_magnitude(self):
+        ux = sol.m[self.qx] / self.sol.m[self.rho]
+        uy = sol.m[self.qy] / sol.m[self.rho]
+        return np.sqrt(ux**2 + uy**2)
 
     def flow_resistance(self, x_offset_cells: int = 2):
         """
         Uses pressure at two x-locations (near inlet/outlet) at mid-height.
         NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
         """
-        p = self.pressure_field(self.sol)
+        p = self.pressure_field()
         mid_y = int(0.5 * (self.ymin + self.ymax) / self.dx)
 
         # pick two x positions a few cells away from each side of the domain
         x_in = int(self.xmin / self.dx) + int(x_offset_cells)
         x_out = int(self.xmax / self.dx) - int(x_offset_cells)
+
+        # set measure coordinates for the instance
+        self.measure_in_x = x_in
+        self.measure_out_x = x_out
+        self.measure_in_y = mid_y
+        self.measure_out_y = mid_y
 
         p_in = p[x_in, mid_y]
         p_out = p[x_out, mid_y]
@@ -221,7 +241,7 @@ class Simulation:
         fig = viewer.Fig()
         ax = fig[0]
 
-        p = self.pressure_field(self.sol)
+        p = self.pressure_field()
         img = (p - p.mean()).T
         ax.image(img, cmap="viridis")
 
@@ -240,24 +260,22 @@ class Simulation:
 
         if not hasattr(self, "sol"):
             raise RuntimeError("Simulation not built. Call build_solver() first.")
-        
+
         sol = self.sol
 
         viewer = pylbm.viewer.matplotlib_viewer
         fig = viewer.Fig()
         ax = fig[0]
 
-        # obstacle_mask = np.zeros((self.W, self.H))
-        # # for x0, x1, y0, y1 in self.rects:
-        # #     obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacle cells
+        # draw the walls
+        self.draw_elements(ax)
 
-        # # field_data = self.pressure_field(sol).T
-        # # combined = field_data.copy()
-        # # combined[obstacle_mask.T > 0] = field_data.max()  # or a fixed color
-        # # ax.image(combined, cmap="viridis")
+        # draw measure points
+        if hasattr(self, "measure_in_x"):
+            ax.ax.scatter([self.measure_in_x, self.measure_out_x], [self.measure_in_y, self.measure_out_y], c = "red", marker="o", zorder = 20)
 
         # Initial field
-        p = self.pressure_field(sol)
+        p = self.velocity_magnitude()
         image = ax.image((p - p.mean()).T, cmap="viridis")
 
         ax.title = f"Pressure field, t = {sol.t:.3f}"
@@ -266,38 +284,63 @@ class Simulation:
             for _ in range(nrep):
                 sol.one_time_step()
 
-            p = self.pressure_field(sol)
+            p = self.velocity_magnitude()
             image.set_data((p - p.mean()).T)
             ax.title = f"Pressure field, t = {sol.t:.3f}"
 
         fig.animate(update, interval=1)
 
         plt.show()
-    
-    def draw_elements(self, ax, color="red", alpha=0.6):
-        """
-        Draw obstacles using pylbm matplotlib_viewer methods.
-        """
-        # draw rectangles
-        for (x0, x1, y0, y1) in getattr(self, "rects", []):
-            px = float(x0) * self.dx
-            py = float(y0) * self.dx
-            w = float(x1 - x0) * self.dx
-            h = float(y1 - y0) * self.dx
-            ax.rectangle([px, py], [w, h], color=color, alpha=alpha)
 
-        # draw circles
-        for elem in self.elements:
-            if isinstance(elem, pylbm.Circle):
-                cx, cy = elem.center
-                r = elem.radius
-                ax.ellipse([cx, cy], [r, r], color=color, alpha=alpha)
+    def draw_elements(self, ax):
+        """
+        Draw all obstacles (Parallelograms from self.elements) on the given matplotlib axis.
+        """
 
+        obstacle_mask = np.zeros((self.W, self.H))  # lattice size
+        for x0, x1, y0, y1 in self.rects:
+            obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacles
+
+        masked = np.ma.masked_where(obstacle_mask == 0, obstacle_mask)
+
+        img = ax.image(masked.T, clim = [0,1], cmap="binary", alpha=1)
+        img.set_zorder(10)
+
+
+def diodicity(reverse, forward):
+    return reverse / forward
 
 
 if __name__ == "__main__":
-    sim = Simulation(dt = 0.1, png_path="./data/test.png")
+    generate_valve(0.07, 2, 0.3, 0.1, 1)
+
+    # Run simulations
+    sim = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=False)
+    sim_rev = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=True)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
-    print("Flow resistance R =", sim.flow_resistance())
-    sim.animate(nrep=1)
+    sol_rec = sim_rev.run()
+
+    # Calculate flow resistance for diodicity
+    reverse_res = sim_rev.flow_resistance()
+    forward_res = sim.flow_resistance()
+    print(f"Reverse Flow resistance at time t = {sim_rev.Tf} is R = {reverse_res}")
+    print(f"Forward Flow resistance at time t = {sim.Tf} is R = {forward_res}")
+    Diodicity = diodicity(reverse_res, forward_res)
+    print(f"The diodicity of this pipe is Di = {Diodicity}")
+
+    # Run animation of reverse flow
+    sim.animate(nrep=64, interval = 0.1)
+
+
+"""
+animation parameters
+nrep = stepsize of t per frame. nrep = 60 -> everyframe t += 60
+interval = the amount of ms between frames
+
+simulation parameters
+la = 1.02, input_vel=0.015 works pretty well
+la = is scheme velocity. Increasing this will make the simulation more stable, but simulation time longer.
+input_vel: input velocity of the fluid. Decrease for more stable simulation.
+
+"""

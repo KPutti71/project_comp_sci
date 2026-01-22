@@ -20,3 +20,5 @@ ipywidgets
 nbval
 markupsafe<2.1
 pylbm
+shapely
+jupyter
