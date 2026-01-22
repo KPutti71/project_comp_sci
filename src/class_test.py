@@ -23,7 +23,7 @@ class Simulation:
         mu_bulk: float = 1e-3,
         dt: int = 1,
         input_vel: int = 0.1,
-        visualization_by: str = 'pressure',
+        visualization_by: str = 'pressure_field',
         image_resolution: tuple = (200, 100),
         flip_y: bool = False,
         flip_x: bool = False
@@ -32,9 +32,8 @@ class Simulation:
         self.sol = None
 
         self.dt = dt
-        self.vis_method = visualization_by
-
-        
+        self.vis_method_str = visualization_by if hasattr(self, visualization_by) else "pressure_field"
+        self.vis_method = getattr(self, self.vis_method_str)
 
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
@@ -110,6 +109,8 @@ class Simulation:
         self.qy2 = inv * self.qy**2
         self.q2 = self.qx2 + self.qy2
         self.qxy = inv * self.qx * self.qy
+
+    # functions to set measurement points for flow resistance measures
 
     def set_measure_y(self):
         """
@@ -208,7 +209,7 @@ class Simulation:
         Uses pressure at two x-locations (near inlet/outlet) at mid-height.
         NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
         """
-        p = self.pressure_field()
+        p = self.vis_method()
 
         p_in = p[self.measure_in_x, self.measure_in_y]
         p_out = p[self.measure_out_x, self.measure_out_y]
@@ -300,7 +301,7 @@ class Simulation:
         fig = viewer.Fig()
         ax = fig[0]
 
-        p = self.pressure_field()
+        p = self.vis_method
         img = (p - p.mean()).T
         ax.image(img, cmap="viridis")
 
@@ -331,21 +332,23 @@ class Simulation:
 
         # draw measure points
         if hasattr(self, "measure_in_x"):
-            ax.ax.scatter([self.measure_in_x, self.measure_out_x], [self.measure_in_y, self.measure_out_y], c = "red", marker="o", zorder = 20)
+            ax.ax.scatter([self.measure_in_x, self.measure_out_x], 
+                          [self.measure_in_y, self.measure_out_y], 
+                          c = "red", marker="o", zorder = 20)
 
         # Initial field
-        p = self.velocity_magnitude()
+        p = self.vis_method()
         image = ax.image((p - p.mean()).T, cmap="viridis")
 
-        ax.title = f"Pressure field, t = {sol.t:.3f}"
+        ax.title = f"{self.vis_method_str}, t = {sol.t:.3f}"
 
         def update(frame):
             for _ in range(nrep):
                 sol.one_time_step()
 
-            p = self.velocity_magnitude()
+            p = self.vis_method()
             image.set_data((p - p.mean()).T)
-            ax.title = f"Pressure field, t = {sol.t:.3f}"
+            ax.title = f"{self.vis_method_str}, t = {sol.t:.3f}"
 
         fig.animate(update, interval=1)
 
@@ -372,10 +375,14 @@ def diodicity(reverse, forward):
 
 if __name__ == "__main__":
     generate_valve(0.07, 2, 0.3, 0.1, 1)
+    resolution = (400, 200)
+    vis_method = "velocity_magnitude"
 
     # Run simulations
-    sim = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=False)
-    sim_rev = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=True)
+    sim = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=False,
+                      image_resolution=resolution, visualization_by=vis_method)
+    sim_rev = Simulation(la = 1.03, input_vel=0.020, png_path="data/valve.png", flip_x=True,
+                         image_resolution=resolution, visualization_by=vis_method)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     sol_rec = sim_rev.run()
@@ -389,7 +396,7 @@ if __name__ == "__main__":
     print(f"The diodicity of this pipe is Di = {Diodicity}")
 
     # Run animation of reverse flow
-    sim.animate(nrep=64, interval = 0.1)
+    sim.animate(nrep=10, interval = 1000)
 
 
 """
