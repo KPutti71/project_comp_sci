@@ -29,9 +29,9 @@ L_OUTLET = 1
 L_WALL = 2
 
 # PNG -> mask (robust against compression / anti-aliasing)
-def _png_to_mask_hybrid(path, tol=DEFAULT_TOL, wall_thresh=DEFAULT_WALL_THRESH):
+def _png_to_mask_hybrid(path, tol=DEFAULT_TOL, wall_thresh=DEFAULT_WALL_THRESH, resolution = (150, 100)):
     # Load PNG as RGB image
-    im = Image.open(path).convert("RGB")
+    im = Image.open(path).convert("RGB").resize(resolution)
     arr = np.array(im, dtype=np.uint8)
     h, w = arr.shape[:2]
 
@@ -110,6 +110,8 @@ def png_to_grid(
     tol=DEFAULT_TOL,
     wall_thresh=DEFAULT_WALL_THRESH,
     flip_y=True,
+    resolution = (150, 100),
+    flip_x = False
 ):
     """
     Use in simulate.py as:
@@ -124,8 +126,9 @@ def png_to_grid(
       codes: CODES
     """
     # build mask in image coordinates
-    mask_img = _png_to_mask_hybrid(png_path, tol=tol, wall_thresh=wall_thresh)
+    mask_img = _png_to_mask_hybrid(png_path, tol=tol, wall_thresh=wall_thresh, resolution = resolution)
     mask = np.flipud(mask_img) if flip_y else mask_img
+    mask = np.fliplr(mask) if flip_x else mask
     H, W = mask.shape
 
     # detect inlet/outlet markers on domain edges
