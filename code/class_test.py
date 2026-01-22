@@ -144,6 +144,12 @@ class Simulation:
         x_in = int(self.xmin / self.dx) + int(x_offset_cells)
         x_out = int(self.xmax / self.dx) - int(x_offset_cells)
 
+        # set measure coordinates for the instance
+        self.measure_in_x = x_in
+        self.measure_out_x = x_out
+        self.measure_in_y = mid_y
+        self.measure_out_y = mid_y
+
         p_in = p[x_in, mid_y]
         p_out = p[x_out, mid_y]
 
@@ -260,7 +266,12 @@ class Simulation:
         fig = viewer.Fig()
         ax = fig[0]
 
+        # draw the walls
         self.draw_elements(ax)
+
+        # draw measure points
+        if hasattr(self, "measure_in_x"):
+            ax.ax.scatter([self.measure_in_x, self.measure_out_x], [self.measure_in_y, self.measure_out_y], c = "red", marker="o", zorder = 20)
 
         # Initial field
         p = self.velocity_magnitude()
@@ -290,12 +301,15 @@ class Simulation:
         for x0, x1, y0, y1 in self.rects:
             obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacles
 
-        ax.image(obstacle_mask.T, clim = [0,1], cmap="Reds", alpha=0.5)
+        masked = np.ma.masked_where(obstacle_mask == 0, obstacle_mask)
+
+        img = ax.image(masked.T, clim = [0,1], cmap="binary", alpha=1)
+        img.set_zorder(10)
 
 
 
 if __name__ == "__main__":
-    sim = Simulation(la = 1.03, input_vel=0.020, png_path="./data/new_valve.png", flip_x=T)
+    sim = Simulation(la = 1.03, input_vel=0.020, png_path="./data/new_valve.png", flip_x=True)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     print("Flow resistance R =", sim.flow_resistance())
