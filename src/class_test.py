@@ -218,7 +218,7 @@ class Simulation:
         uy = sol.m[self.qy] / sol.m[self.rho]
         return np.sqrt(ux**2 + uy**2)
 
-    def flow_resistance(self, x_offset_cells: int = 2):
+    def flow_resistance(self):
         """
         Uses pressure at two x-locations (near inlet/outlet) at mid-height.
         NOTE: Assumes sol.m[rho] indexing is [ix, iy] in lattice-cell coordinates.
@@ -310,6 +310,9 @@ class Simulation:
     # --------------------------------------------------
     # Run + Plot
     # --------------------------------------------------
+    def build_simulation(self):
+        self.sol = pylbm.Simulation(self.build_simulation_config())
+    
     def run(self):
         self.sol = pylbm.Simulation(self.build_simulation_config())
         while self.sol.t < self.Tf:
