@@ -3,6 +3,8 @@ import sympy as sp
 import pylbm
 import matplotlib.pyplot as plt
 
+import logging
+
 from .png_to_grid import png_to_grid, plot_grid
 from .valve_generator import generate_valve
 from PIL import Image
@@ -177,7 +179,10 @@ class Simulation:
                and final_loop_x >= 0):
             final_loop_x -= 1
         
-        return (int(first_loop_x), int(final_loop_x))
+        measure_x_in = first_loop_x / 2
+        measure_x_out = self.xmax - (self.xmax - final_loop_x) / 2
+
+        return (int(measure_x_in), int(measure_x_out))
 
     # --------------------------------------------------
     # Grid -> pylbm elements
@@ -226,6 +231,13 @@ class Simulation:
         Q = self.u_in * (self.ymax - self.ymin)
         return abs(p_in - p_out) / Q
 
+    def d_inflow_outflow(self):
+        v = self.velocity_magnitude()
+
+        v_in = v[self.measure_in_x, self.measure_in_y]
+        v_out = v[self.measure_out_x, self.measure_out_y]
+
+        return v_in - v_out
     # --------------------------------------------------
     # pylbm config
     # --------------------------------------------------
@@ -406,36 +418,41 @@ def run_fwd_rev(**kwargs):
 
 
 if __name__ == "__main__":
-    generate_valve(0.07, 2, 0.3, 0.1, 1)
+    logging.getLogger("pylbm").setLevel(logging.ERROR)
+    generate_valve(0.03, 2, 0.35, 0.1, 1)
     sim_params = {
         "png_path": "data/valve.png",
-        "resolution_factor": 1,
-        "visualization_by": "pressure_field",
-        "la": 1.03,
-        "input_vel": 0.020,
-        "Re": 50
+        "resolution_factor": 4,
+        "visualization_by": "velocity_magnitude",
+        "la": 1.02,
+        "input_vel": 0.015,
+        "Re": 20
         }
 
     # run_fwd_rev(**sim_params)
 
 
     # Run simulations
-    sim = Simulation(flip_x = False, **sim_params)
-    sim_rev = Simulation(flip_x = True, **sim_params)
+    sim = Simulation(flip_x = True, **sim_params)
+    sim_rev = Simulation(flip_x = False, **sim_params)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
-    sol_rec = sim_rev.run()
+    sol_rev = sim_rev.run()
 
     # Calculate flow resistance for diodicity
     reverse_res = sim_rev.flow_resistance()
     forward_res = sim.flow_resistance()
     print(f"Reverse Flow resistance at time t = {sim_rev.Tf} is R = {reverse_res}")
     print(f"Forward Flow resistance at time t = {sim.Tf} is R = {forward_res}")
+    print(f"Fwd Inflow-outflow velocity at time t = {sim.Tf} is dV = {sim.d_inflow_outflow()}")
+    print(f"Rev Inflow-outflow velocity at time t = {sim_rev.Tf} is dV = {sim_rev.d_inflow_outflow()}")
+    
     Diodicity = diodicity(reverse_res, forward_res)
     print(f"The diodicity of this pipe is Di = {Diodicity}")
 
     # Run animation of reverse flow
     sim.animate(nrep=10, interval = 10000)
+    sim_rev.animate(nrep=10, interval = 10000)
 
 
 """
