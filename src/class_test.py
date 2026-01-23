@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 from .png_to_grid import png_to_grid, plot_grid
 from .valve_generator import generate_valve
+from PIL import Image
 
 
 class Simulation:
@@ -24,7 +25,7 @@ class Simulation:
         dt: int = 1,
         input_vel: int = 0.1,
         visualization_by: str = 'pressure_field',
-        image_resolution: tuple = (200, 100),
+        resolution_factor: int = 1,
         flip_y: bool = False,
         flip_x: bool = False
     ):
@@ -35,11 +36,13 @@ class Simulation:
         self.vis_method_str = visualization_by if hasattr(self, visualization_by) else "pressure_field"
         self.vis_method = getattr(self, self.vis_method_str)
 
+        self.resolution = self.set_resolution(png_path, resolution_factor)
+
         # --------------------------------------------------
         # 1) Load grid (store everything you’ll need on self)
         # --------------------------------------------------
         self.png_path = png_path
-        self.grid = png_to_grid(self.png_path, resolution=image_resolution, flip_x=flip_x, flip_y=flip_y)
+        self.grid = png_to_grid(self.png_path, resolution=self.resolution, flip_x=flip_x, flip_y=flip_y)
 
         self.mask = self.grid["mask"]
         self.rects = self.grid["rects"]
@@ -111,6 +114,12 @@ class Simulation:
         self.qxy = inv * self.qx * self.qy
 
     # functions to set measurement points for flow resistance measures
+
+    def set_resolution(self, png_path, factor):
+        image = Image.open(png_path)
+
+        width, height = image.size
+        return (width*factor, height*factor)
 
     def set_measure_y(self):
         """
@@ -400,10 +409,11 @@ if __name__ == "__main__":
     generate_valve(0.07, 2, 0.3, 0.1, 1)
     sim_params = {
         "png_path": "data/valve.png",
-        "image_resolution": (400, 200),
+        "resolution_factor": 1,
         "visualization_by": "pressure_field",
         "la": 1.03,
-        "input_vel": 0.020
+        "input_vel": 0.020,
+        "Re": 50
         }
 
     # run_fwd_rev(**sim_params)
@@ -425,7 +435,7 @@ if __name__ == "__main__":
     print(f"The diodicity of this pipe is Di = {Diodicity}")
 
     # Run animation of reverse flow
-    sim.animate(nrep=10, interval = 1000)
+    sim.animate(nrep=10, interval = 10000)
 
 
 """
