@@ -305,13 +305,23 @@ class Simulation:
             "init": init,
             "boundary_conditions": bcs,
             "generator": "cython",
+            "codegen_option": {
+            "directory": "./codegen",
+            "generate": False,   # If this raises an error, set it to true ONCE.
+}
         }
 
     # --------------------------------------------------
     # Run + Plot
     # --------------------------------------------------
     def build_simulation(self):
+        # print("start build_simulation_config")
+        # a = self.build_simulation_config()
+        # print("end build_simulation_config")
         self.sol = pylbm.Simulation(self.build_simulation_config())
+        # print("start pylbm.Simulation")
+        # self.sol = pylbm.Simulation(a)
+        # print("end pylbm.Simulation")
     
     def run(self):
         self.sol = pylbm.Simulation(self.build_simulation_config())
