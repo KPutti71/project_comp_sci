@@ -1,3 +1,15 @@
+"""
+Script converts a color-coded PNG geometry into a structured grid representation
+for use in fluid simulations.
+
+The PNG is interpreted using a fixed color legend (fluid, wall), and is converted into:
+- a grid mask of integer codes,
+- axis-aligned wall rectangles for efficient boundary handling,
+- domain metadata (resolution, spacing, bounding box, labels).
+
+The resulting grid dictionary is used in class_test.py for simulation.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches

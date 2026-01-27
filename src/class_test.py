@@ -35,7 +35,11 @@ class Simulation:
         self.sol = None
 
         self.dt = dt
-        self.vis_method_str = visualization_by if hasattr(self, visualization_by) else "pressure_field"
+        # self.vis_method_str = visualization_by if hasattr(self, visualization_by) else "pressure_field"
+        if hasattr(self, visualization_by):
+            self.vis_method_str = visualization_by
+        else:
+            self.vis_method_str = "pressure_field"
         self.vis_method = getattr(self, self.vis_method_str)
 
         self.resolution = self.set_resolution(png_path, resolution_factor)

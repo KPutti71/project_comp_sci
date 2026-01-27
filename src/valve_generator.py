@@ -1,6 +1,6 @@
 '''
 Sript creates a tesla valve based of dx, dy, raidus and the with of the valve.
-The png of the valve is sxported as: "data/valve.txt".
+The png of the valve is exported as: "data/valve.txt".
 '''
 
 import numpy as np
@@ -12,10 +12,10 @@ from PIL import Image
 
 # Color legend used in the PNG
 LEGEND = {
-    "fluid":  (255, 255, 255),   # white
-    "wall":   (0,   0,   0),     # black
-    "inlet":  (255 / 255, 0,   0),     # red
-    "outlet": (128 / 255, 0, 128 / 255),     # purple
+    "fluid":  (255, 255, 255),              # white
+    "wall":   (0,   0,   0),                # black
+    # "inlet":  (255 / 255, 0,   0),          # red
+    # "outlet": (128 / 255, 0, 128 / 255),    # purple
 }
 
 
@@ -26,6 +26,7 @@ current = {
 }
 
 
+# A plot for debugging purposes.
 def plot(elements):
     size_px = 500
     dpi = 1
@@ -88,6 +89,18 @@ def make_bend(dx, dy, radius, width):
 
 
 def generate_valve(width, dx, dy, radius, N):
+    """
+    Generates the valve,
+    Input:
+        - width: The width of the valve
+        - dx: The x length of a single loop segment
+        - dy: The y length of a single loop segment
+        - radius: The radius of a single loop segment
+        - N: The amount of tesla valve loop segments
+
+    Output:
+        - A PNG of the tesla valve
+    """
     dx = 1
     dy /= dx
     width /= dx
@@ -128,4 +141,6 @@ def generate_valve(width, dx, dy, radius, N):
 
 
 if __name__ == "__main__":
+
+    # example
     generate_valve(0.04, 1, 0.9, 0.12, 1)
