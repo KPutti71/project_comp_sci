@@ -60,20 +60,10 @@ def plot_3d_and_heatmap_full_sweep(
         alpha=0.9
     )
 
-    ax.plot(
-        ridge_x,
-        ridge_y,
-        ridge_z,
-        color="red",
-        linewidth=3,
-        marker="o",
-        markersize=3,
-        label="Max per radius"
-    )
-
     ax.set_xlabel(x_col)
     ax.set_ylabel(y_col)
     ax.set_zlabel(z_col)
+    ax.set_title("3D plot of diodicity vs radius and dy")
     ax.legend()
 
     plt.tight_layout()
@@ -93,18 +83,9 @@ def plot_3d_and_heatmap_full_sweep(
         cmap="viridis"
     )
 
-    ax.plot(
-        ridge_x,
-        ridge_y,
-        color="red",
-        linewidth=3,
-        marker="o",
-        markersize=3,
-        label="Max per radius"
-    )
-
     ax.set_xlabel(x_col)
     ax.set_ylabel(y_col)
+    ax.set_title("Heatmap of diodicity vs radius and dy")
 
     plt.colorbar(im, ax=ax, label=z_col)
     ax.legend()
