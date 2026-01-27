@@ -1,5 +1,6 @@
 # Python virtual environments
 pylbm-env/
+venv/
 
 # Build artifacts
 build/
