@@ -1,7 +1,7 @@
-'''
+"""
 Sript creates a tesla valve based of dx, dy, raidus and the with of the valve.
 The png of the valve is exported as: "data/valve.txt".
-'''
+"""
 
 import numpy as np
 from shapely import Point
@@ -14,8 +14,6 @@ from PIL import Image
 LEGEND = {
     "fluid":  (255, 255, 255),              # white
     "wall":   (0,   0,   0),                # black
-    # "inlet":  (255 / 255, 0,   0),          # red
-    # "outlet": (128 / 255, 0, 128 / 255),    # purple
 }
 
 
@@ -26,8 +24,10 @@ current = {
 }
 
 
-# A plot for debugging purposes.
 def plot(elements):
+    """
+    A plot for debugging purposes.
+    """
     size_px = 500
     dpi = 1
     figsize = size_px / dpi
@@ -54,7 +54,6 @@ def plot(elements):
     return path
 
 
-# Creates a line.
 def make_line(dx, dy, width):
     result = LineString([(current["x"], current["y"]),
                         (current["x"] + dx, current["y"] + dy)]).buffer(width)
@@ -65,8 +64,10 @@ def make_line(dx, dy, width):
     return [result]
 
 
-# Creates a bend of 180 degrees.
 def make_bend(dx, dy, radius, width):
+    """
+    Creates a bend of 180 degrees.
+    """
     assert dx > 0
 
     a = 1/2 * np.pi - np.arctan(dy / dx)
@@ -101,6 +102,7 @@ def generate_valve(width, dx, dy, radius, N):
     Output:
         - A PNG of the tesla valve
     """
+
     dx = 1
     dy /= dx
     width /= dx
@@ -142,5 +144,5 @@ def generate_valve(width, dx, dy, radius, N):
 
 if __name__ == "__main__":
 
-    # example
+    # example Valve.
     generate_valve(0.04, 1, 0.9, 0.12, 1)
