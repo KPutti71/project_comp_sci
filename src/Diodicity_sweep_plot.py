@@ -1,51 +1,25 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def plot_8_parameter_sweeps(
-    csv_path,
-    output_path="results/diodicity_8panel.png",
-):
-    # -----------------------------
-    # Load data
-    # -----------------------------
-    df = pd.read_csv(csv_path)
-    df = df.dropna(subset=["diodicity"])
+plt.figure()
 
-    # -----------------------------
-    # Identify unique parameter sets
-    # -----------------------------
-    param_cols = ["width", "radius", "dy"]
-    param_sets = df[param_cols].drop_duplicates().iloc[:8]
+cmap = plt.get_cmap("viridis")
+n = len(diodicities)
 
-    # -----------------------------
-    # Create figure
-    # -----------------------------
-    fig, axes = plt.subplots(2, 4, figsize=(14, 6), sharey=True)
-    axes = axes.flatten()
+for i, (t, d) in enumerate(zip(timepoints, diodicities)):
+    if len(t) == 0:
+        continue
+    plt.plot(
+        t,
+        d,
+        color=cmap(i / n),
+        label=f"w={widths[i//4]}, r={radii[(i//2)%2]}, dy={dys[i%2]}",
+    )
 
-    # -----------------------------
-    # Plot each parameter set
-    # -----------------------------
-    for ax, (_, params) in zip(axes, param_sets.iterrows()):
-        w, r, dy = params
-
-        sub = df[
-            (df["width"] == w) &
-            (df["radius"] == r) &
-            (df["dy"] == dy)
-        ].sort_values("timepoint")
-
-        ax.plot(sub["timepoint"], sub["diodicity"])
-        ax.set_title(f"w={w}, r={r}, dy={dy}", fontsize=9)
-        ax.set_xlabel("Time")
-        ax.grid(True, alpha=0.3)
-
-    axes[0].set_ylabel("Diodicity")
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300)
-    plt.close(fig)
-
-
-if __name__ == "__main__":
-    plot_8_parameter_sweeps("results/diodicity_sweep_all.csv")
+plt.xlabel("time")
+plt.ylabel("diodicity")
+plt.title("Diodicity over time for 8 valve configurations")
+plt.ylim((0, 5))
+plt.legend(fontsize=8)
+plt.tight_layout()
+plt.show()
