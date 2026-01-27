@@ -1,9 +1,8 @@
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 
 def plot_3d_and_heatmap_full_sweep(

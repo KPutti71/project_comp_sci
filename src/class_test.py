@@ -44,7 +44,8 @@ class Simulation:
         # 1) Load grid (store everything you’ll need on self)
         # --------------------------------------------------
         self.png_path = png_path
-        self.grid = png_to_grid(self.png_path, resolution=self.resolution, flip_x=flip_x, flip_y=flip_y)
+        self.grid = png_to_grid(self.png_path, resolution=self.resolution,
+                                flip_x=flip_x, flip_y=flip_y)
 
         self.mask = self.grid["mask"]
         self.rects = self.grid["rects"]
@@ -126,19 +127,19 @@ class Simulation:
     def set_measure_y(self):
         """
         Function to find the coordinates of the measurement points.
-        coordinates will be 
+        coordinates will be
         """
 
         y_in = 0
         # find y_in top boundary
         while self.mask[:, 0][y_in] == 1 and y_in < self.ymax:
             y_in += 1
-        
+
         # find diameter
-        valve_diameter =0
+        valve_diameter = 0
         while self.mask[:, 0][y_in+valve_diameter] == 0 and y_in < self.ymax:
             valve_diameter += 1
-        
+
         # find y-out top boundary
         y_out = 0
         while self.mask[:, -1][y_out] and y_out < self.ymax:
@@ -146,7 +147,7 @@ class Simulation:
 
         y_in = y_in+(valve_diameter/2)
         y_out = y_out+(valve_diameter/2)
-        
+
         return (int(y_in), int(y_out))
 
     def set_measure_x(self):
@@ -154,31 +155,31 @@ class Simulation:
         y_in = 0
         while self.mask[:, 0][y_in] == 1 and y_in < self.ymax:
             y_in += 1
-        
+
         # find diameter
-        valve_diameter =0
+        valve_diameter = 0
         while self.mask[:, 0][y_in+valve_diameter] == 0 and y_in < self.ymax:
             valve_diameter += 1
 
         # find first loop start x coord
         first_loop_x = 0
-        while (self.mask[y_in - 1, :][first_loop_x] == 1 
+        while (self.mask[y_in - 1, :][first_loop_x] == 1
                and self.mask[y_in+valve_diameter, :][first_loop_x] == 1
                and first_loop_x < self.xmax):
             first_loop_x += 1
-        
+
         # find y-out top boundary
         y_out = 0
         while self.mask[:, -1][y_out] and y_out < self.ymax:
             y_out += 1
-        
+
         # find final loop end x coord
         final_loop_x = int(self.xmax) - 1
         while (self.mask[y_out - 1, :][final_loop_x] == 1
                and self.mask[y_out + valve_diameter, :][final_loop_x] == 1
                and final_loop_x >= 0):
             final_loop_x -= 1
-        
+
         measure_x_in = first_loop_x / 2
         measure_x_out = self.xmax - (self.xmax - final_loop_x) / 2
 
@@ -238,6 +239,7 @@ class Simulation:
         v_out = v[self.measure_out_x, self.measure_out_y]
 
         return v_in - v_out
+
     # --------------------------------------------------
     # pylbm config
     # --------------------------------------------------
@@ -305,8 +307,7 @@ class Simulation:
             "init": init,
             "boundary_conditions": bcs,
             "generator": "cython",
-}
-
+        }
 
     # --------------------------------------------------
     # Run + Plot
@@ -319,7 +320,7 @@ class Simulation:
         # print("start pylbm.Simulation")
         # self.sol = pylbm.Simulation(a)
         # print("end pylbm.Simulation")
-    
+
     def run(self):
         self.sol = pylbm.Simulation(self.build_simulation_config())
         while self.sol.t < self.Tf:
@@ -347,7 +348,7 @@ class Simulation:
         """
         Live matplotlib animation using the existing pylbm.Simulation.
         """
-        import matplotlib.patches as patches
+        # import matplotlib.patches as patches
 
         if not hasattr(self, "sol"):
             raise RuntimeError("Simulation not built. Call build_solver() first.")
@@ -393,20 +394,22 @@ class Simulation:
 
         masked = np.ma.masked_where(obstacle_mask == 0, obstacle_mask)
 
-        img = ax.image(masked.T, clim = [0,1], cmap="binary", alpha=1)
+        img = ax.image(masked.T, clim=[0, 1], cmap="binary", alpha=1)
         img.set_zorder(10)
 
     def draw_measure_points(self, ax):
         if hasattr(self, "measure_in_x"):
-            ax.ax.scatter([self.measure_in_x, self.measure_out_x], 
-                          [self.measure_in_y, self.measure_out_y], 
-                          c = "red", marker="o", zorder = 20)
+            ax.ax.scatter([self.measure_in_x, self.measure_out_x],
+                          [self.measure_in_y, self.measure_out_y],
+                          c="red", marker="o", zorder=20)
+
 
 def diodicity(reverse, forward):
     return reverse / forward
 
+
 def run_fwd_rev(**kwargs):
-    sim_fwd = Simulation(flip_x = False, **kwargs)
+    sim_fwd = Simulation(flip_x=False, **kwargs)
     sim_rev = Simulation(flip_x=True, **kwargs)
 
     sol_fwd = sim_fwd.sol = pylbm.Simulation(sim_fwd.build_simulation_config())
@@ -422,7 +425,7 @@ def run_fwd_rev(**kwargs):
 
     sim_fwd.draw_elements(ax_fwd)
     sim_fwd.draw_measure_points(ax_fwd)
-    
+
     sim_rev.draw_elements(ax_rev)
     sim_rev.draw_measure_points(ax_fwd)
 
@@ -441,10 +444,9 @@ if __name__ == "__main__":
 
     # run_fwd_rev(**sim_params)
 
-
     # Run simulations
-    sim = Simulation(flip_x = True, **sim_params)
-    sim_rev = Simulation(flip_x = False, **sim_params)
+    sim = Simulation(flip_x=True, **sim_params)
+    sim_rev = Simulation(flip_x=False, **sim_params)
     # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing
     sol = sim.run()
     sol_rev = sim_rev.run()
@@ -455,14 +457,17 @@ if __name__ == "__main__":
     print(f"Reverse Flow resistance at time t = {sim_rev.Tf} is R = {reverse_res}")
     print(f"Forward Flow resistance at time t = {sim.Tf} is R = {forward_res}")
     print(f"Fwd Inflow-outflow velocity at time t = {sim.Tf} is dV = {sim.d_inflow_outflow()}")
-    print(f"Rev Inflow-outflow velocity at time t = {sim_rev.Tf} is dV = {sim_rev.d_inflow_outflow()}")
-    
+    print(
+        f"Rev Inflow-outflow velocity at time t = {sim_rev.Tf}\n"
+        f"dV = {sim_rev.d_inflow_outflow()}"
+    )
+
     Diodicity = diodicity(reverse_res, forward_res)
     print(f"The diodicity of this pipe is Di = {Diodicity}")
 
     # Run animation of reverse flow
-    sim.animate(nrep=10, interval = 10000)
-    sim_rev.animate(nrep=10, interval = 10000)
+    sim.animate(nrep=10, interval=10000)
+    sim_rev.animate(nrep=10, interval=10000)
 
 
 """
@@ -472,7 +477,8 @@ interval = the amount of ms between frames
 
 simulation parameters
 la = 1.02, input_vel=0.015 works pretty well
-la = is scheme velocity. Increasing this will make the simulation more stable, but simulation time longer.
+la = is scheme velocity. Increasing this will make the simulation more stable,
+but simulation time longer.
 input_vel: input velocity of the fluid. Decrease for more stable simulation.
 
 """

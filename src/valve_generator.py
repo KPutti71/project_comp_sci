@@ -56,7 +56,7 @@ def plot(elements):
 # Creates a line.
 def make_line(dx, dy, width):
     result = LineString([(current["x"], current["y"]),
-    (current["x"] + dx, current["y"] + dy)]).buffer(width)
+                        (current["x"] + dx, current["y"] + dy)]).buffer(width)
 
     current["x"] += dx
     current["y"] += dy
@@ -66,17 +66,20 @@ def make_line(dx, dy, width):
 
 # Creates a bend of 180 degrees.
 def make_bend(dx, dy, radius, width):
-    assert(dx > 0)
-
-    # Smoothness of the bend.
-    sn = 64
+    assert dx > 0
 
     a = 1/2 * np.pi - np.arctan(dy / dx)
     curve = np.linspace(np.pi - a, -a) if dy < 0 else np.linspace(-a, np.pi - a)
     move_x = np.cos(curve[0]) * radius
     move_y = np.sin(curve[0]) * radius
 
-    result = [Point(current["x"] + np.cos(a) * radius + move_x, current["y"] + np.sin(a) * radius + move_y).buffer(width) for a in curve]
+    result = [
+        Point(
+            current["x"] + np.cos(a) * radius + move_x,
+            current["y"] + np.sin(a) * radius + move_y
+        ).buffer(width)
+        for a in curve
+    ]
 
     current["x"] -= 2 * np.cos(curve[-1]) * radius
     current["y"] -= 2 * np.sin(curve[-1]) * radius

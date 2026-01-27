@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
+# import numpy as np
+
 
 def plot_diodicity_time(csv_path, output_base="results/diodicity"):
     # -------------------------
