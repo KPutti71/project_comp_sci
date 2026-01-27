@@ -1,12 +1,13 @@
+'''
+Sript creates a tesla valve based of dx, dy, raidus and the with of the valve.
+The png of the valve is sxported as: "data/valve.txt".
+'''
+
 import numpy as np
 from shapely import Point
 from shapely import LineString, Point
 import matplotlib.pyplot as plt
 from PIL import Image
-
-
-def test():
-    pass
 
 
 # Color legend used in the PNG
@@ -50,9 +51,6 @@ def plot(elements):
     cropped.save(path)
 
     return path
-
-    # plt.fill(*elements[-1].exterior.xy, color=LEGEND["outlet"])
-    # plt.fill(*elements[-2].exterior.xy, color=LEGEND["inlet"])
 
 
 # Creates a line.
@@ -123,11 +121,8 @@ def generate_valve(width, dx, dy, radius, N):
 
     elements += make_line(dx, 0, width)
 
-    # elements += [Point(0, 0).buffer(width * 1.1)]
-    # elements += [Point(current["x"], current["y"]).buffer(width * 1.1)]
-
     plot(elements)
 
 
 if __name__ == "__main__":
-    generate_valve(0.07, 2, 0.35, 0.1, 1)
+    generate_valve(0.04, 1, 0.9, 0.12, 1)
