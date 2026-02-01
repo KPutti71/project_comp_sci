@@ -11,24 +11,17 @@ There are **two Jupyter notebooks**, depending on what you want to do:
 ### `experiments.ipynb` — run simulations
 Requires the full scientific stack (PyLBM, Python 3.10, etc.).
 
+### `results.ipynb` — plot existing data
+Only reads CSV files and generates plots.
+
 You **must**:
 - Create a virtual environment named **`pylbm-env`**
 - Install all dependencies from `requirements.txt`
 - Select the correct kernel in Jupyter
 
-### `results.ipynb` — plot existing data
-Only reads CSV files and generates plots.
-
-**Requirements**:
-- `pandas`
-- `numpy`
-- `matplotlib`
-
-(No additional setup required.)
-
 ---
 
-## Full setup (for experiments)
+## Full setup
 
 Run the following **from the project root** (`project_comp_sci`):
 
@@ -55,7 +48,7 @@ jupyter notebook
 
 ## Jupyter kernel selection (important)
 
-When opening `experiments.ipynb`, make sure Jupyter is using the **`pylbm-env`** kernel.
+When opening either notebooks, make sure Jupyter is using the **`pylbm-env`** kernel.
 
 ![Jupyter kernel selection](data/images/kernel.png)
 
