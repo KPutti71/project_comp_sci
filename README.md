@@ -60,3 +60,15 @@ When opening `experiments.ipynb`, make sure Jupyter is using the **`pylbm-env`**
 ![Jupyter kernel selection](data/images/kernel.png)
 
 ---
+
+### Kernel not showing up?
+
+If the `pylbm-env` environment does not appear in Jupyter’s kernel list, run:
+
+```bash
+source pylbm-env/bin/activate
+python -m ipykernel install \
+  --user \
+  --name pylbm-env \
+  --display-name "Python (pylbm-env)"
+```
