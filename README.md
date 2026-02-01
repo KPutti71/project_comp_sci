@@ -1,64 +1,62 @@
-# Fluid Dynamics: finding the optimal Tesla Valve Design
+# Fluid Dynamics — Optimal Tesla Valve Design
 
-This project uses **PyLBM** (Lattice Boltzmann Method) for fluid simulations.
-A **Python virtual environment** is used to ensure reproducibility and avoid
-dependency conflicts.
+This project uses **PyLBM (Lattice Boltzmann Method)** to simulate fluid flow and analyze Tesla valve designs.
 
-The instructions below assume **Ubuntu/Debian** and **Python 3.10**.
+There are **two Jupyter notebooks**, depending on what you want to do:
 
 ---
 
-## 1. Install system prerequisites
+## Notebooks overview
 
-### Python virtual environment support
+### `experiments.ipynb` — run simulations
+Requires the full scientific stack (PyLBM, Python 3.10, etc.).
+
+You **must**:
+- Create a virtual environment named **`pylbm-env`**
+- Install all dependencies from `requirements.txt`
+- Select the correct kernel in Jupyter
+
+### `results.ipynb` — plot existing data
+Only reads CSV files and generates plots.
+
+**Requirements**:
+- `pandas`
+- `numpy`
+- `matplotlib`
+
+(No additional setup required.)
+
+---
+
+## Full setup (for experiments)
+
+Run the following **from the project root** (`project_comp_sci`):
+
 ```bash
+# System dependency (Ubuntu/Debian)
 sudo apt update
-sudo apt install -y python3.10-venv
-```
----
+sudo apt install -y python3.10 python3.10-venv
 
-## 3. Create and activate the virtual environment
-
-From the **project root** (`project_comp_sci`):
-
-```bash
-python3 -m venv pylbm-env
+# Create and activate virtual environment
+python3.10 -m venv pylbm-env
 source pylbm-env/bin/activate
-```
 
-Upgrade packaging tools:
-
-```bash
+# Upgrade tooling
 pip install --upgrade pip setuptools wheel
+
+# Install all dependencies
+pip install -r requirements.txt
+
+# Then when all is ready you can view the jupyter notebooks
+jupyter notebook
 ```
 
 ---
 
-## 4. Install Python dependencies
+## Jupyter kernel selection (important)
 
-Install all required packages:
+When opening `experiments.ipynb`, make sure Jupyter is using the **`pylbm-env`** kernel.
 
-```bash
-pip install -r requirements.txt
-```
-
-Verify the installation:
-
-```bash
-python -c "import pylbm, numpy; print('pylbm ok:', pylbm.__version__, 'numpy:', numpy.__version__)"
-```
-
----
-
-## Reproducibility
-
-To recreate the environment from scratch on another machine:
-
-```bash
-python3 -m venv pylbm-env
-source pylbm-env/bin/activate
-pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
-```
+![Jupyter kernel selection](data/images/kernel.png)
 
 ---
