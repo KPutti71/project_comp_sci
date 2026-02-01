@@ -27,8 +27,8 @@ class Simulation:
 
     def __init__(
         self,
-        # Location of the tesla valve.
         png_path: str = "./data/test.png",
+
         # Parameters for the pyblm simulation.
         Re: float = 20.0,
         la: float = 1.0,
@@ -54,7 +54,7 @@ class Simulation:
 
         self.resolution = self.set_resolution(png_path, resolution_factor)
 
-        # 1) Load grid (store everything you’ll need on self).
+        # 1) Load grid (store everything you’ll need on self)
         self.png_path = png_path
         self.grid = png_to_grid(self.png_path, resolution=self.resolution,
                                 flip_x=flip_x, flip_y=flip_y)
@@ -75,7 +75,7 @@ class Simulation:
             self.top_label,
         ) = self.grid["labels"]
 
-        # 2) Physical / simulation parameters.
+        # 2) Physical / simulation parameters
         self.Re = float(Re)
         self.la = float(la)
         self.Tf = float(Tf)
@@ -85,7 +85,7 @@ class Simulation:
         # Inlet velocity
         self.u_in = input_vel
 
-        # 3) Build pylbm obstacles from grid rectangles.
+        # 3) Build pylbm obstacles from grid rectangles
         self.elements = self._build_elements_from_rects(self.rects)
 
 
@@ -100,9 +100,8 @@ class Simulation:
         self.X, self.Y, self.LA = sp.symbols("X Y LA")
         self.rho, self.qx, self.qy = sp.symbols("rho qx qy")
 
-        # 5) Derived / MRT parameters.
+        # 5) Derived / MRT parameters
         # Need some characteristic length for shear viscosity relation.
-        # If your PNG encodes a channel, a safe default is the domain height.
         self.char_length = (self.ymax - self.ymin)
 
         self.eta_shear = self.rho0 * self.u_in * self.char_length / self.Re
@@ -187,7 +186,7 @@ class Simulation:
 
         return (int(measure_x_in), int(measure_x_out))
 
-    # Grid -> pylbm elements.
+    # Grid -> pylbm elements
     def _build_elements_from_rects(self, rects):
         elements = []
         for (x0, x1, y0, y1) in rects:
@@ -207,7 +206,7 @@ class Simulation:
             )
         return elements
 
-    # Post-processing helpers.
+    # Post-processing helpers
     def pressure_field(self):
         cs2 = 1.0 / 3.0
         return cs2 * self.sol.m[self.rho]
@@ -238,7 +237,7 @@ class Simulation:
 
         return v_in - v_out
 
-    # pylbm config.
+    # pylbm config
     def build_simulation_config(self):
         # inlet callback must be a plain function (closure), not a bound method
         qx_sym = self.qx
@@ -305,7 +304,7 @@ class Simulation:
             "generator": "cython",
         }
 
-    # Run + Plot.
+    # Run + Plot
     def build_simulation(self):
         # print("start build_simulation_config")
         # a = self.fbuild_simulation_config()
@@ -334,7 +333,7 @@ class Simulation:
         ax.title = f"Pressure field at t = {self.sol.t:f}"
         fig.show()
 
-    # Optional: visualize the parsed PNG grid itself.
+    # Optional: visualize the parsed PNG grid itself
     def plot_grid(self):
         plot_grid(self.grid)
 
@@ -342,7 +341,6 @@ class Simulation:
         """
         Live matplotlib animation using the existing pylbm.Simulation.
         """
-        # import matplotlib.patches as patches.
 
         if not hasattr(self, "sol"):
             raise RuntimeError("Simulation not built. Call build_solver() first.")
@@ -353,13 +351,13 @@ class Simulation:
         fig = viewer.Fig()
         ax = fig[0]
 
-        # draw the walls.
+        # draw the walls
         self.draw_elements(ax)
 
-        # draw measure points.
+        # draw measure points
         self.draw_measure_points(ax)
 
-        # Initial field.
+        # Initial field
         p = self.vis_method()
         image = ax.image((p - p.mean()).T, cmap="viridis")
 
@@ -382,11 +380,11 @@ class Simulation:
         Draw all obstacles (Parallelograms from self.elements) on the given matplotlib axis.
         """
 
-        # lattice size.
-        obstacle_mask = np.zeros((self.W, self.H))
+        # lattice size
+        obstacle_mask = np.zeros((self.W, self.H))  # lattice size
         for x0, x1, y0, y1 in self.rects:
             # mark obstacles
-            obstacle_mask[x0:x1, y0:y1] = 1.0
+            obstacle_mask[x0:x1, y0:y1] = 1.0  # mark obstacles
 
         masked = np.ma.masked_where(obstacle_mask == 0, obstacle_mask)
 
@@ -426,10 +424,10 @@ def run_fwd_rev(**kwargs):
     sim_rev.draw_measure_points(ax_fwd)
 
 
-# Example simulation.
+# Example simulation
 if __name__ == "__main__":
     logging.getLogger("pylbm").setLevel(logging.ERROR)
-    generate_valve(0.04, 2, 0.493, 0.154, 1)
+    generate_valve(0.03, 2, 0.35, 0.1, 1)
     sim_params = {
         "png_path": "data/valve.png",
         "resolution_factor": 4,
@@ -439,14 +437,14 @@ if __name__ == "__main__":
         "Re": 20
         }
 
-    # Run simulations,
+    # Run simulations
     sim = Simulation(flip_x=True, **sim_params)
     sim_rev = Simulation(flip_x=False, **sim_params)
-    # sim.plot_grid()  # uncomment to debug your PNG -> grid parsing.
+    # sim.plot_grid()  # uncomment to debug PNG -> grid parsing
     sol = sim.run()
     sol_rev = sim_rev.run()
 
-    # Calculate flow resistance for diodicity.
+    # Calculate flow resistance for diodicity
     reverse_res = sim_rev.flow_resistance()
     forward_res = sim.flow_resistance()
     print(f"Reverse Flow resistance at time t = {sim_rev.Tf} is R = {reverse_res}")
@@ -460,7 +458,7 @@ if __name__ == "__main__":
     Diodicity = diodicity(reverse_res, forward_res)
     print(f"The diodicity of this pipe is Di = {Diodicity}")
 
-    # Run animation of reverse flow.
+    # Run animation of reverse flow
     sim.animate(nrep=10, interval=10000)
     sim_rev.animate(nrep=10, interval=10000)
 
